@@ -1,0 +1,23 @@
+{
+  "name": "lynk-daemon",
+  "version": "0.1.0",
+  "description": "Daemon de Lynk: crea conexiones LAN entre navegadores para que las webs (p.ej. juegos) no necesiten un servidor pagado.",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "dev:second": "cross-env LYNK_LOCAL_PORT=7990 LYNK_PEER_PORT=7991 tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.13",
+    "cross-env": "^7.0.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

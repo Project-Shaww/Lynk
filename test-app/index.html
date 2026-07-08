@@ -1,13 +1,72 @@
-<html lang="en">
+<!doctype html>
+<html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TEST APP</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lynk · Test App</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      font-family: ui-monospace, "SF Mono", Consolas, monospace;
+      background: #14161a;
+      color: #e8e8ec;
+      max-width: 640px;
+      margin: 40px auto;
+      padding: 0 16px;
+    }
+    h1 { font-size: 1.3rem; margin-bottom: 4px; }
+    .sub { color: #8a8f98; margin-top: 0; margin-bottom: 24px; font-size: 0.9rem; }
+    .row { display: flex; gap: 8px; margin-bottom: 12px; }
+    input, button {
+      font: inherit;
+      background: #1e2126;
+      border: 1px solid #33383f;
+      color: #e8e8ec;
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+    button { cursor: pointer; background: #2a2f37; }
+    button:hover { background: #343a43; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    input { flex: 1; }
+    #status { padding: 10px 12px; border-radius: 6px; background: #1e2126; margin-bottom: 16px; font-size: 0.9rem; }
+    #log {
+      background: #0e1013;
+      border: 1px solid #24272c;
+      border-radius: 6px;
+      padding: 10px 12px;
+      height: 220px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+    }
+    .log-line { margin-bottom: 4px; }
+    .log-line.sys { color: #8a8f98; }
+    .log-line.err { color: #ff6b6b; }
+    .log-line.in { color: #6bd4ff; }
+    .log-line.out { color: #8affa0; }
+    code { color: #c9a2ff; }
+  </style>
 </head>
 <body>
-    <h1>TEST APP</h1>
+  <h1>Lynk · Test App</h1>
+  <p class="sub">Prueba manual del daemon + SDK. Necesita el daemon corriendo en <code>ws://127.0.0.1:7890</code>.</p>
+
+  <div id="status">Sin conectar</div>
+
+  <div class="row">
+    <button id="btnCreate">Crear sala</button>
+    <input id="joinCode" placeholder="código de sala (p.ej. 7F3K)" maxlength="4" />
+    <button id="btnJoin">Unirse</button>
+  </div>
+
+  <div class="row">
+    <input id="msgInput" placeholder="mensaje para broadcast..." disabled />
+    <button id="btnSend" disabled>Enviar</button>
+  </div>
+
+  <div id="log"></div>
+
+  <script type="module" src="./main.js"></script>
 </body>
-<script type="text/javascript">
-    
-</script>
 </html>

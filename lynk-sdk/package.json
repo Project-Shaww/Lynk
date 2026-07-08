@@ -1,0 +1,15 @@
+{
+  "name": "lynk-sdk",
+  "version": "0.1.0",
+  "description": "SDK de cliente para que cualquier web hable con el daemon local de Lynk.",
+  "type": "module",
+  "main": "dist/lynk-sdk.esm.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && esbuild src/index.ts --bundle --format=esm --outfile=dist/lynk-sdk.esm.js && esbuild src/index.ts --bundle --format=iife --global-name=Lynk --outfile=dist/lynk-sdk.global.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.2"
+  }
+}
