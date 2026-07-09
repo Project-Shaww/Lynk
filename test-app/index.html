@@ -11,13 +11,9 @@
     (async () => {
     const Lynk = await import('../lynk-sdk/index.js');
     const host = new Lynk.Host();
-    host.connect((e) => {
-        if (e) {
-            console.error('Failed to connect to Lynk host:', e);
-            return;
-        }
-        console.log('Connected to Lynk host');
-    });
+    host.connect();
+    console.log(host);
+    window.host = host;
     })();
 </script>
 </html>

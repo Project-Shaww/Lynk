@@ -1,20 +1,25 @@
 const WebSocket = require('ws');
 const wss = new WebSocket.Server({ port: 51738 });
+let connections = new Map();
+
+generateUniqueId = () => {
+    return Math.random().toString(36).substr(2, 9);
+}
+
 wss.on('connection', (ws) => {
     console.log('New client connected');
+    const id = generateUniqueId();
+    connections.set(generateUniqueId(), ws);
 
-    // Send a welcome message to the client
-    ws.send('Welcome to the WebSocket server!');
+    ws.send(JSON.stringify({type: 'welcome', connectionId: id}));
 
-    // Message event handler
     ws.on('message', (message) => {
         console.log(`Received: ${message}`);
-        // Echo the message back to the client
         ws.send(`Server received: ${message}`);
     });
 
-    // Close event handler
     ws.on('close', () => {
         console.log('Client disconnected');
+        connections.delete(id);
     });
 });
