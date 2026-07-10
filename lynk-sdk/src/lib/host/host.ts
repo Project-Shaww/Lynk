@@ -118,7 +118,7 @@ class Host {
 
     // Methods
 
-    request(type: string, data: Object & any | null = null): Promise<any> {
+    request(type: string, data: Object & any | null = null, timeout: number = 5000): Promise<any> {
         return new Promise((resolve, reject) => {
             if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.connected) {
                 reject(new Error('WebSocket is not open.'));
@@ -131,6 +131,13 @@ class Host {
             const pid = this.pid++;
             this.pendingRequests.set(pid, { resolve, reject });
             this.sendWSMessage({ pid: pid, type: type, ...data });
+
+            if (timeout && timeout > 0) setTimeout(() => {
+                if (this.pendingRequests.has(pid)) {
+                    reject(new Error("Timeout exceeded."));
+                    this.pendingRequests.delete(pid)
+                }
+            }, timeout);
         });
     }
 
