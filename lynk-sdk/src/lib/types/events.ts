@@ -1,2 +1,3 @@
-export type HostEvent = 'connect' | 'disconnect' | 'welcome' | 'message' | 'error';
-export type ServerEvent = 'onMessage' | 'onConnected' | 'onDisconnected' | 'onError';
+export type HostEvent = 'connect' | 'disconnect' | 'welcome' | 'message' | 'error'
+    | 'serverCreated' | 'serverClosed' | 'serverMessage';
+export type ServerEvent = 'disconnected' | 'message' | 'error';

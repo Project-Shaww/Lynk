@@ -1,18 +1,26 @@
 import type { Handler } from './handler.js';
 import type { HandlerResponse } from './types/response.js';
-import { Server, type ServerConfig, type ServerProtocol } from '../../server/server.js';
+import { ServerMap, type ServerConfig } from '../../server/index.js';
 
-export interface CreateServerData {
-    server: Server;
+export interface CreateServerData<T extends keyof ServerMap> {
+    server: ServerMap[T];
     sid: string;
-    protocol: ServerProtocol;
+    protocol: T;
     config: ServerConfig;
     port: number;
 }
 
-const createServerHandler: Handler = (host, data): HandlerResponse<CreateServerData> => {
-    const server = new Server(host, data.sid, data.port, data.protocol, data.config);
-    return { response: { accepted: true, data: { server: server, sid: data.sid, protocol: data.protocol, port: data.port, config: data.config } } };
+interface ServerData<T extends keyof ServerMap> {
+    sid: string;
+    protocol: T;
+    port: number;
+    config: ServerConfig;
 }
+
+const createServerHandler = (<T extends keyof ServerMap>(host: any, data: ServerData<T>): HandlerResponse<CreateServerData<T>> => {
+    const server = new (ServerMap[data.protocol] as any)(host, data.sid, data.port, data.config);
+    host.servers.set(data.sid, server);
+    return { response: { accepted: true, data: { server: server, sid: data.sid, protocol: data.protocol, port: data.port, config: data.config } }, events: [{ event: 'serverCreated', data: { id: data.sid, protocol: data.protocol, port: data.port, config: data.config } }] };
+}) as Handler;
 
 export default createServerHandler;

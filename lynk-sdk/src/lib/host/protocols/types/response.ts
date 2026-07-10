@@ -1,11 +1,13 @@
+import { HostEvent } from "../../../types/events";
+
 interface ClientResponse<T = any> {
     accepted: boolean;
     data: T;
 }
 
 interface DispatchEventResponse {
-    event: string;
-    args: unknown[];
+    event: HostEvent;
+    data: Record<string, any>;
 }
 
 export interface HandlerResponse<T = any> {
