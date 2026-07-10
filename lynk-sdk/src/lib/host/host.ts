@@ -1,11 +1,8 @@
 import { getLocalUrl } from '../utils.js';
 import { protocolHandlers } from './protocols/index.js';
-
-type HostEvent = 'connect' | 'disconnect' | 'welcome' | 'message' | 'error';
-interface Listener {
-    name: string;
-    callback: (...args: unknown[]) => void;
-}
+import type { HostEvent } from '../types/events.js';
+import type { Listener } from '../types/listener.js';
+import { Server, type ServerConfig } from '../server/server.js';
 
 class Host {
     /* */
@@ -39,12 +36,12 @@ class Host {
         }
     }
 
-    on = (event: HostEvent, callback: (...args: any[]) => void, name: string) => {
+    on(event: HostEvent, callback: (...args: any[]) => void, name: string): void {
         if (!this._listeners.has(event)) this._listeners.set(event, []);
         this._listeners.get(event)?.push({ name, callback });
     }
 
-    off = (event: HostEvent, name: string) => {
+    off(event: HostEvent, name: string): void {
         const listeners = this._listeners.get(event);
         if (listeners) this._listeners.set(event, listeners.filter(listener => listener.name !== name));
     }
@@ -92,11 +89,11 @@ class Host {
     };
 
     // Public Methods
-    isConnected = () => { return this.connected; }
+    isConnected(): boolean { return this.connected; }
 
-    getConnectionId = () => { return this.connectionId || ''; }
+    getConnectionId(): string | null { return this.connectionId; }
 
-    connect = () => {
+    connect(): void {
         const url = 'ws://' + this._getLocalUrl();
         try {
             this.ws = new WebSocket(url);
@@ -112,7 +109,7 @@ class Host {
         }
     }
 
-    disconnect = () => {
+    disconnect(): void {
         if (this.ws) this.ws.close();
         this.ws = null;
         this.connected = false;
@@ -147,6 +144,17 @@ class Host {
 
     async ping(): Promise<boolean> {
         return this.request('ping')
+    }
+
+    async createServer(config: ServerConfig): Promise<Server> {
+        let _config = config as any;
+        const protocol = _config.protocol;
+        delete _config.protocol;
+        return this.request('create_server', { config: _config, protocol }, 15000)
+    }
+
+    async closeServer(sid: string): Promise<boolean> {
+        return this.request('close_server', { sid })
     }
 }
 

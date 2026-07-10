@@ -5,7 +5,9 @@ export type Handler = (host: Host, message: Object & any) => HandlerResponse | v
 
 const handlers: Map<string, Handler> = new Map<string, Handler>();
 
+handlers.set('error', (await import('./error.js')).default);
 handlers.set('welcome', (await import('./welcome.js')).default);
-handlers.set('pong', (await import('./ping.js')).default)
+handlers.set('pong', (await import('./ping.js')).default);
+handlers.set('server_created', (await import('./create_server.js')).default);
 
 export { handlers as protocolHandlers }
