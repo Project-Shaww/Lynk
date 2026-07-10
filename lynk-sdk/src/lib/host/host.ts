@@ -1,7 +1,7 @@
 import { getLocalUrl } from '../utils.js';
-import handlers from './handlers/index.js';
+import { protocolHandlers } from './protocols/index.js';
 
-type HostEvent = 'connect' | 'disconnect' | 'message' | 'error';
+type HostEvent = 'connect' | 'disconnect' | 'welcome' | 'message' | 'error';
 interface Listener {
     name: string;
     callback: (...args: unknown[]) => void;
@@ -25,10 +25,11 @@ class Host {
     constructor() {
         this._getLocalUrl = getLocalUrl;
         this.connected = false;
+        this.on('welcome', (connectionId: string) => this.connectionId = connectionId, 'host-welcome-listener');
     }
 
     // Listener Management
-    protected callListeners = (event: HostEvent, ...args: unknown[]) => {
+    protected callListeners = (event: HostEvent, ...args: any[]) => {
         const listeners = this._listeners.get(event);
         if (listeners) {
             listeners.forEach(listener => {
@@ -38,7 +39,7 @@ class Host {
         }
     }
 
-    on = (event: HostEvent, callback: (...args: unknown[]) => void, name: string) => {
+    on = (event: HostEvent, callback: (...args: any[]) => void, name: string) => {
         if (!this._listeners.has(event)) this._listeners.set(event, []);
         this._listeners.get(event)?.push({ name, callback });
     }
@@ -67,13 +68,18 @@ class Host {
             catch (error) { return }
         }
         if (!data || typeof data !== 'object' || !data.type) return;
-        const res = handlers.get(data.type)?.(this, data);
-        if (data.pid != null && this.pendingRequests.has(data.pid)) {
-            if (res) {
-                if (res.accepted) this.pendingRequests.get(data.pid)?.resolve(res.data)
-                else this.pendingRequests.get(data.pid)?.reject(res.data)
-            } else this.pendingRequests.get(data.pid)?.reject(new Error("Handler didn't gave a result"))
-            this.pendingRequests.delete(data.pid)
+        const res = protocolHandlers.get(data.type)?.(this, data);
+        if (res) {
+            if (res.events) {
+                res.events.forEach(event => this.callListeners(event.event as HostEvent, ...event.args));
+            }
+            if (data.pid != null && this.pendingRequests.has(data.pid)) {
+                if (res.response) {
+                    if (res.response.accepted) this.pendingRequests.get(data.pid)?.resolve(res.response.data)
+                    else this.pendingRequests.get(data.pid)?.reject(res.response.data)
+                } else this.pendingRequests.get(data.pid)?.reject(new Error("Handler didn't gave a result"))
+                this.pendingRequests.delete(data.pid)
+            }
         }
         this.callListeners('message', message.data);
     }
@@ -84,8 +90,6 @@ class Host {
             this.ws.send(JSON.stringify(sendMessage));
         }
     };
-
-    _setConnectionId = (connectionId: string) => { this.connectionId = connectionId; }
 
     // Public Methods
     isConnected = () => { return this.connected; }
@@ -118,7 +122,7 @@ class Host {
 
     // Methods
 
-    request(type: string, data: Object & any | null = null, timeout: number = 5000): Promise<any> {
+    async request(type: string, data: Object & any | null = null, timeout: number = 5000): Promise<any> {
         return new Promise((resolve, reject) => {
             if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.connected) {
                 reject(new Error('WebSocket is not open.'));
@@ -141,7 +145,7 @@ class Host {
         });
     }
 
-    ping(): Promise<boolean> {
+    async ping(): Promise<boolean> {
         return this.request('ping')
     }
 }
