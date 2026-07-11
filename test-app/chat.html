@@ -301,10 +301,7 @@
             chatStatus.innerText = 'Initializing server...';
             const Lynk = await import('../lynk-sdk/index.js');
             const host = new Lynk.Host();
-            host.connect();
-            while(!host.isConnected() && !host.getConnectionId()) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
+            await host.connect();
             const server = await host.createServer('ws');
             chatStatus.innerText = 'Server created';
             chatURL.innerText = 'ws://127.0.0.1:' + server.getPort();

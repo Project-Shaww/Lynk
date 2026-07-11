@@ -46,17 +46,17 @@ class Server<E extends string = ServerEvent> {
     public getProtocol(): string { return this.protocol; }
     public getConfig(): ServerConfig { return this.config; }
 
-    public on = (event: E, callback: (data: Record<string, any>) => void, name: string) => {
+    public on(event: E, callback: (data: Record<string, any>) => void, name: string): void {
         if (!this._listeners.has(event)) this._listeners.set(event, []);
         this._listeners.get(event)?.push({ name, callback });
     }
 
-    public off = (event: E, name: string) => {
+    public off(event: E, name: string): void {
         const listeners = this._listeners.get(event);
         if (listeners) this._listeners.set(event, listeners.filter(listener => listener.name !== name));
     }
 
-    public close = () => {
+    public close(): void {
         this._host.request('close_server', { sid: this.id })
     }
 }

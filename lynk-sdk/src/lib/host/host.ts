@@ -24,7 +24,6 @@ class Host {
     constructor() {
         this._getLocalUrl = getLocalUrl;
         this.connected = false;
-        this.on('welcome', (data) => this.id = data.id, 'host-welcome-listener');
     }
 
     // Listener Management
@@ -95,20 +94,35 @@ class Host {
 
     public getConnectionId(): string | null { return this.id; }
 
-    public connect(): void {
-        const url = 'ws://' + this._getLocalUrl();
-        try {
-            this.ws = new WebSocket(url);
-            this.ws.onopen = (e) => this.handleWSOpen(e);
-            this.ws.onclose = (e) => this.handleWSClose(e);
-            this.ws.onerror = (error) => this.callListeners('error', { error: 'WebSocket error', message: error });
-            this.ws.onmessage = (message) => this.handleWSMessage(message);
-        } catch (error) {
-            this.callListeners('error', { error: 'Failed to connect to WebSocket', message: error });
-            this.connected = false;
-            this.ws = null;
-            this.id = null;
-        }
+    public connect(): Promise<void> {
+        return new Promise((res, rej) => {
+            const url = 'ws://' + this._getLocalUrl();
+            try {
+                this.ws = new WebSocket(url);
+                this.ws.onopen = (e) => this.handleWSOpen(e);
+                this.ws.onclose = (e) => this.handleWSClose(e);
+                this.ws.onerror = (error) => this.callListeners('error', { error: 'WebSocket error', message: error });
+                this.ws.onmessage = (message) => this.handleWSMessage(message);
+                this.on('welcome', (data) => {
+                    this.id = data.id
+                    this.off('welcome', 'host-intern-welcome-listener');
+                    res();
+                }, 'host-intern-welcome-listener');
+                setTimeout(() => {
+                    if (!this.id) {
+                        this.off('welcome', 'host-intern-welcome-listener');
+                        this.ws?.close();
+                        rej(new Error('Connection timeout.'));
+                    }
+                }, 30000);
+            } catch (error) {
+                this.callListeners('error', { error: 'Failed to connect to WebSocket', message: error });
+                this.connected = false;
+                this.ws = null;
+                this.id = null;
+                rej(error);
+            }
+        });
     }
 
     public disconnect(): void {

@@ -6,8 +6,8 @@ import type { ServerEvent } from '../../types/events.js';
 
 type WSEvent = ServerEvent | 'clientJoined' | 'clientLeft' | 'clientMessage';
 
-class WSServer extends Server<WSEvent> {
-    public clients: Map<string, InstanceType<typeof WSServer.Client>> = new Map<string, InstanceType<typeof WSServer.Client>>();
+class LynkWSServer extends Server<WSEvent> {
+    public clients: Map<string, InstanceType<typeof LynkWSServer.Client>> = new Map<string, InstanceType<typeof LynkWSServer.Client>>();
 
     constructor(host: Host, sid: string, port: number, config: ServerConfig) {
         super(host, sid, port, 'ws', config, false);
@@ -17,10 +17,10 @@ class WSServer extends Server<WSEvent> {
 
     protected handleServerMessage(data: Record<string, any>) {
         if (!data.type) return;
-        let client: InstanceType<typeof WSServer.Client>;
+        let client: InstanceType<typeof LynkWSServer.Client>;
         switch (data.type) {
             case 'connect':
-                client = new WSServer.Client(data.cid, this);
+                client = new LynkWSServer.Client(data.cid, this);
                 this.clients.set(data.cid, client);
                 this.callListeners('clientJoined', { cid: data.cid, client: client });
                 break;
@@ -44,10 +44,10 @@ class WSServer extends Server<WSEvent> {
 
     static Client = class {
         cid: string;
-        server: WSServer;
+        server: LynkWSServer;
         _listeners: Map<'message' | 'disconnected' | 'error', Listener[]> = new Map();
 
-        constructor(clientID: string, server: WSServer) {
+        constructor(clientID: string, server: LynkWSServer) {
             this.cid = clientID;
             this.server = server;
         }
@@ -77,7 +77,7 @@ class WSServer extends Server<WSEvent> {
         }
     }
 
-    public getClient(id: string): InstanceType<typeof WSServer.Client> | void {
+    public getClient(id: string): InstanceType<typeof LynkWSServer.Client> | void {
         return this.clients.get(id);
     }
 
@@ -92,4 +92,4 @@ class WSServer extends Server<WSEvent> {
     }
 }
 
-export default WSServer;
+export default LynkWSServer;

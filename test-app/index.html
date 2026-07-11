@@ -11,18 +11,16 @@
     (async () => {
     const Lynk = await import('../lynk-sdk/index.js');
     const host = new Lynk.Host();
-    host.connect();
+    await host.connect();
     console.log(host);
     window.host = host;
-    host.on('welcome',async() => {
-    const server = await host.createServer('ws');
-    server.on('clientMessage', console.log, 'a');
-    server.on('clientJoined', console.log, 'a');
-    server.on('clientLeft', console.log, 'a');
-    host.on('serverMessage', console.log, 'a');
-    console.log('ws://127.0.0.1:'+server.getPort());
+    const server = await host.createServer('http');
+    server.on('request', (req) => {
+        console.log(req);
+        req.res(200, {'Content-Type': 'application/json'}, JSON.stringify({ message: 'Hello World' }))
+    })
+    console.log('http://localhost:'+server.getPort());
     window.server = server;
-    }, 'a')
     })();
 </script>
 </html>

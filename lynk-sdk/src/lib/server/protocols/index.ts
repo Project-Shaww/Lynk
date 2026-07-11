@@ -1,8 +1,11 @@
 import { Server, ServerConfig } from "./server.js";
-import WSServer from "./ws.js";
+import LynkWSServer from "./ws.js";
+import LynkHTTPServer from "./http.js";
+
 
 const ServerMap = {
-    ws: WSServer,
+    ws: LynkWSServer,
+    http: LynkHTTPServer
 } as const;
 
 type ServerMap = typeof ServerMap;
@@ -10,5 +13,5 @@ type ServerMap = typeof ServerMap;
 export {
     Server, ServerConfig,
     ServerMap,
-    WSServer
+    LynkWSServer, LynkHTTPServer
 }
