@@ -60,7 +60,6 @@ function HTTPServer(host, servers_ref) {
         }
         if (typeof payload !== 'object' || !payload.type) return;
         if (payload.type == 'response') {
-            console.log(payload)
             const res = this.requests.get(payload.rid);
             if (res) {
                 res.writeHead(payload.status, payload.headers);

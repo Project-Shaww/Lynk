@@ -6,11 +6,11 @@ const { generateUniqueId } = require('../utils.js');
  * @param {Map<string, any>} servers_ref
  */
 function WSServer(host, servers_ref) {
+    this.host = host;
     this.sid = generateUniqueId();
     this.hostId = host.id;
     this.port = 0;
     this.server = null;
-    this.host = host;
 
     this.ready = false;
     let onReady = [];
@@ -36,10 +36,10 @@ function WSServer(host, servers_ref) {
     this.clients = new Map();
 
     /** @param {WebSocket} websocket */
-    function Client(websocket, sid, hostId) {
+    function Client(websocket, sid, host) {
         this.websocket = websocket;
         this.sid = sid;
-        this.hid = hostId;
+        this.host = host;
         this.cid = generateUniqueId();
 
         this.send = (data) => {
@@ -69,7 +69,7 @@ function WSServer(host, servers_ref) {
     }
 
     this.server.on('connection', (websocket) => {
-        const client = new Client(websocket, this.sid, this.hostId);
+        const client = new Client(websocket, this.sid, this.host);
         this.clients.set(client.cid, client);
         const host = this.host;
         if (host) host.send({type: 'server_message', sid: this.sid, payload: {type: 'connect', cid: client.cid}});
@@ -82,7 +82,6 @@ function WSServer(host, servers_ref) {
             this.clients.get(cid).send(parsedData);
             return true;
         } else {
-            console.log('br')
             this.clients.forEach((client) => {
                 if (client.websocket.readyState === WebSocket.OPEN) {
                     client.send(parsedData);
@@ -104,7 +103,6 @@ function WSServer(host, servers_ref) {
             }
         }
         if (payload.type == 'broadcast') {
-            console.log('broadcasting')
             if (payload.payload) {
                 this.send(payload.payload);
             }

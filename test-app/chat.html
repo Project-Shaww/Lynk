@@ -304,12 +304,14 @@
             await host.connect();
             const server = await host.createServer('ws');
             chatStatus.innerText = 'Server created';
-            chatURL.innerText = 'ws://127.0.0.1:' + server.getPort();
+            chatURL.innerText = 'ws://'+window.location.hostname+':' + server.getPort();
             chatURL.title = 'Click to copy';
             chatURL.addEventListener('click', () => {
-                navigator.clipboard.writeText('ws://127.0.0.1:' + server.getPort());
-                chatURL.innerText = 'Copied!';
-                setTimeout(() => chatURL.innerText = 'ws://127.0.0.1:' + server.getPort(), 2000);
+                if(navigator && navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText('ws://'+window.location.hostname+':' + server.getPort());
+                    chatURL.innerText = 'Copied!';
+                    setTimeout(() => chatURL.innerText = 'ws://'+window.location.hostname+':' + server.getPort(), 2000);
+                }
             });
 
             server.on('clientMessage', (data) => {
@@ -344,15 +346,18 @@
         }
 
         async function initClientChat() {
-            const url = new URL(clientInput.value);
+            let url = new URL(clientInput.value);
             url.protocol = 'ws';
+            url = url.toString().trimEnd('/');
             const ws = new WebSocket(url);
             chatURL.innerText = url;
             chatURL.title = 'Click to copy';
             chatURL.addEventListener('click', () => {
-                navigator.clipboard.writeText(url);
-                chatURL.innerText = 'Copied!';
-                setTimeout(() => chatURL.innerText = url, 2000);
+                if(navigator && navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(url);
+                    chatURL.innerText = 'Copied!';
+                    setTimeout(() => chatURL.innerText = url, 2000);
+                }
             });
             chatStatus.innerText = 'Connecting to server...';
 
@@ -368,7 +373,6 @@
 
             let lastSentMessage = 'A member joined the chat';
             ws.addEventListener('message', (event) => {
-                console.log(event, event.data);
                 const message = event.data;
                 if (message == lastSentMessage) {
                     lastSentMessage = null;

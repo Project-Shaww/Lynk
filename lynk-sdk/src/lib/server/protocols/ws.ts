@@ -16,6 +16,7 @@ class LynkWSServer extends Server<WSEvent> {
     }
 
     protected handleServerMessage(data: Record<string, any>) {
+        console.log(data)
         if (!data.type) return;
         let client: InstanceType<typeof LynkWSServer.Client>;
         switch (data.type) {
