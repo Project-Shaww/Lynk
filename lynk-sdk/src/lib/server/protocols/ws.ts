@@ -85,6 +85,11 @@ class WSServer extends Server<WSEvent> {
         if (typeof data !== 'string') data = JSON.stringify(data);
         this._host.messageServer(this.id, { type: 'send', cid: cid, payload: data }).then((accepted: boolean) => { if (!accepted) { this.getClient(cid)?.dispatchEvent('error', { error: 'Server rejected message' }); this.callListeners('error', { error: 'Server rejected message' }); } }).catch((err: any) => { this.getClient(cid)?.dispatchEvent('error', { error: err }); this.callListeners('error', { error: err }); });
     }
+
+    public broadcast(data: Record<string, any> | string): void {
+        if (typeof data !== 'string') data = JSON.stringify(data);
+        this._host.messageServer(this.id, { type: 'broadcast', payload: data }).then((accepted: boolean) => { if (!accepted) { this.callListeners('error', { error: 'Server rejected message' }); } }).catch((err: any) => { this.callListeners('error', { error: err }); });
+    }
 }
 
 export default WSServer;

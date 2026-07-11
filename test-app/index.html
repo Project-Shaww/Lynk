@@ -15,7 +15,6 @@
     console.log(host);
     window.host = host;
     host.on('welcome',async() => {
-    
     const server = await host.createServer('ws');
     server.on('clientMessage', console.log, 'a');
     server.on('clientJoined', console.log, 'a');

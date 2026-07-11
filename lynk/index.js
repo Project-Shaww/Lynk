@@ -119,15 +119,14 @@ function WSServer(hid) {
         if (cid && this.clients.get(cid) && this.clients.get(cid).websocket.readyState === WebSocket.OPEN) {
             this.clients.get(cid).send(parsedData);
             return true;
-        } else if (this.server.readyState === WebSocket.OPEN) {
+        } else {
+            console.log('br')
             this.clients.forEach((client) => {
                 if (client.websocket.readyState === WebSocket.OPEN) {
                     client.send(parsedData);
                 }
             });
             return true;
-        } else {
-            return false;
         }
     }
 
@@ -140,6 +139,12 @@ function WSServer(hid) {
         if (payload.type == 'send') {
             if (payload.payload) {
                 this.send(payload.payload, payload.cid);
+            }
+        }
+        if (payload.type == 'broadcast') {
+            console.log('broadcasting')
+            if (payload.payload) {
+                this.send(payload.payload);
             }
         }
     }
