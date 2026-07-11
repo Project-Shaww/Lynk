@@ -12,7 +12,7 @@ class Host {
     protected ws: WebSocket | null = null;
     protected connected: boolean;
     protected _listeners: Map<HostEvent, Listener[]> = new Map<HostEvent, Listener[]>();
-    protected connectionId: string | null = null;
+    protected id: string | null = null;
     
     // Resolver
     protected pid: number = 0;
@@ -24,7 +24,7 @@ class Host {
     constructor() {
         this._getLocalUrl = getLocalUrl;
         this.connected = false;
-        this.on('welcome', (data) => this.connectionId = data.connectionId, 'host-welcome-listener');
+        this.on('welcome', (data) => this.id = data.id, 'host-welcome-listener');
     }
 
     // Listener Management
@@ -56,7 +56,7 @@ class Host {
 
     protected handleWSClose = (event: CloseEvent) => {
         this.connected = false;
-        this.connectionId = null;
+        this.id = null;
         this.callListeners('disconnect');
     }
 
@@ -85,7 +85,7 @@ class Host {
 
     protected sendWSMessage = (message: Record<string, any> | null = null) => {
         if (this.ws && this.ws.readyState === WebSocket.OPEN && this.connected) {
-            const sendMessage: Record<string, any> = { ...message, id: this.connectionId };
+            const sendMessage: Record<string, any> = { ...message, id: this.id };
             this.ws.send(JSON.stringify(sendMessage));
         }
     };
@@ -93,7 +93,7 @@ class Host {
     // Public Methods
     public isConnected(): boolean { return this.connected; }
 
-    public getConnectionId(): string | null { return this.connectionId; }
+    public getConnectionId(): string | null { return this.id; }
 
     public connect(): void {
         const url = 'ws://' + this._getLocalUrl();
@@ -107,7 +107,7 @@ class Host {
             this.callListeners('error', { error: 'Failed to connect to WebSocket', message: error });
             this.connected = false;
             this.ws = null;
-            this.connectionId = null;
+            this.id = null;
         }
     }
 
@@ -115,7 +115,7 @@ class Host {
         if (this.ws) this.ws.close();
         this.ws = null;
         this.connected = false;
-        this.connectionId = null;
+        this.id = null;
         this.callListeners('disconnect');
     }
 
@@ -149,7 +149,7 @@ class Host {
     }
 
     public async createServer<T extends keyof ServerMap>(protocol: T, config: ServerConfig): Promise<ServerMap[T]> {
-        return this.request('create_server', { protocol, config }, 15000);
+        return new Promise((res, rej) => {this.request('create_server', { protocol, config }, 15000).then((d) => res(d.server)).catch(rej)});
     }
 
     public async closeServer(sid: string): Promise<boolean> {

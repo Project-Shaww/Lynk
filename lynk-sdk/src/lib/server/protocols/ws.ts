@@ -19,12 +19,12 @@ class WSServer extends Server<WSEvent> {
         if (!data.type) return;
         let client: InstanceType<typeof WSServer.Client>;
         switch (data.type) {
-            case 'clientJoined':
+            case 'connect':
                 client = new WSServer.Client(data.cid, this);
                 this.clients.set(data.cid, client);
                 this.callListeners('clientJoined', { cid: data.cid, client: client });
                 break;
-            case 'clientLeft':
+            case 'disconnect':
                 client = this.clients.get(data.cid) as any;
                 if (client) {
                     client.dispatchEvent('disconnected');
@@ -43,9 +43,9 @@ class WSServer extends Server<WSEvent> {
     }
 
     static Client = class {
-        protected cid: string;
-        protected server: WSServer;
-        protected _listeners: Map<'message' | 'disconnected' | 'error', Listener[]> = new Map();
+        cid: string;
+        server: WSServer;
+        _listeners: Map<'message' | 'disconnected' | 'error', Listener[]> = new Map();
 
         constructor(clientID: string, server: WSServer) {
             this.cid = clientID;

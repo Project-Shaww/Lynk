@@ -10,7 +10,7 @@ handlers.set('welcome', (await import('./welcome.js')).default);
 handlers.set('pong', (await import('./ping.js')).default);
 handlers.set('server_created', (await import('./create_server.js')).default);
 handlers.set('server_closed', (await import('./close_server.js')).default);
-handlers.set('server_message_received', (await import('./message_server.js')).default);
+handlers.set('server_message_sent', (await import('./message_server.js')).default);
 handlers.set('server_message', (await import('./received_server.js')).default);
 
 export { handlers as protocolHandlers }

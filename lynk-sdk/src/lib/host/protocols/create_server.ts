@@ -4,10 +4,6 @@ import { ServerMap, type ServerConfig } from '../../server/index.js';
 
 export interface CreateServerData<T extends keyof ServerMap> {
     server: ServerMap[T];
-    sid: string;
-    protocol: T;
-    config: ServerConfig;
-    port: number;
 }
 
 interface ServerData<T extends keyof ServerMap> {
@@ -20,7 +16,7 @@ interface ServerData<T extends keyof ServerMap> {
 const createServerHandler = (<T extends keyof ServerMap>(host: any, data: ServerData<T>): HandlerResponse<CreateServerData<T>> => {
     const server = new (ServerMap[data.protocol] as any)(host, data.sid, data.port, data.config);
     host.servers.set(data.sid, server);
-    return { response: { accepted: true, data: { server: server, sid: data.sid, protocol: data.protocol, port: data.port, config: data.config } }, events: [{ event: 'serverCreated', data: { id: data.sid, protocol: data.protocol, port: data.port, config: data.config } }] };
+    return { response: { accepted: true, data: { server: server } }, events: [{ event: 'serverCreated', data: { id: data.sid, protocol: data.protocol, port: data.port, config: data.config } }] };
 }) as Handler;
 
 export default createServerHandler;

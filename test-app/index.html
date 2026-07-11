@@ -14,6 +14,16 @@
     host.connect();
     console.log(host);
     window.host = host;
+    host.on('welcome',async() => {
+    
+    const server = await host.createServer('ws');
+    server.on('clientMessage', console.log, 'a');
+    server.on('clientJoined', console.log, 'a');
+    server.on('clientLeft', console.log, 'a');
+    host.on('serverMessage', console.log, 'a');
+    console.log('ws://127.0.0.1:'+server.getPort());
+    window.server = server;
+    }, 'a')
     })();
 </script>
 </html>
