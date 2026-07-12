@@ -69,6 +69,8 @@ function HTTPServer(host, servers_ref) {
         }
     }
 
+    this.service = null;
+
     this.close = () => {
         this.server.close();
         servers_ref.delete(this.sid);

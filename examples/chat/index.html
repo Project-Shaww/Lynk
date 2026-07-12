@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lynk Chat</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="login-container" id="login">
+        <div class="login-form">
+            <h1>Lynk Chat</h1>
+            <div class="login-host-form">
+              <p>Host a chat</p>
+              <button id="hostSubmitButton">Host Chat</button>
+            </div>
+            <p class="ortext">-or-</p>
+            <div class="login-client-form">
+              <p>Join a chat</p>
+              <div>
+                <input type="text" id="clientInput" placeholder="Enter server ip">
+                <button id="clientSubmitButton">Join Chat</button>
+              </div>
+            </div>
+        </div>
+    </div>
+  <div class="chat-container hidden" id="chat-container">
+    <div class="chat-header">
+        <h1>Lynk Chat</h1>
+        <p id="chatURL"></p>
+        <p id="chatStatus"></p>
+        <input type="text" id="usernameInput" placeholder="Enter username">
+    </div>
+    <div class="messages-container" id="messages"></div>
+    <div class="message-input-container">
+      <input type="text" id="messageInput" placeholder="Type a message...">
+      <button id="sendButton">Send</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

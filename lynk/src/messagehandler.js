@@ -11,11 +11,12 @@ function handleMessage(hc, message) {
     if (!data || typeof data !== 'object' || !data.type) return;
     if (!data.id || data.id != hc.id) return;
     switch (data.type) {
-        case 'ping':
+        case 'ping': {
             hc.send({ type: 'pong', pid: data.pid });
             break;
+        }
 
-        case 'create_server':
+        case 'create_server': {
             const config = data.config;
             const protocol = data.protocol;
             if (protocol) {
@@ -29,8 +30,9 @@ function handleMessage(hc, message) {
                 hc.send({type: 'error', error: 'create_server:protocol', message: 'Invalid protocol', pid: data.pid});
             }
             break;
+        }
         
-        case 'close_server':
+        case 'close_server': {
             if (data.sid) {
                 const server = servers.get(data.sid);
                 if (server && server.id === hc.id) {
@@ -45,8 +47,9 @@ function handleMessage(hc, message) {
                 hc.send({type: 'error', error: 'close_server:not_found', message: 'Server not found', pid: data.pid});
             }
             break;
+        }
         
-        case 'message_server':
+        case 'message_server': {
             const server = servers.get(data.sid);
             if (server && server.hostId === hc.id) {
                 server.message(data.payload);
@@ -55,10 +58,12 @@ function handleMessage(hc, message) {
                 hc.send({type: 'error', error: 'message_server:not_found', message: 'Server not found', pid: data.pid});
             }
             break;
-            
-        default:
+        }
+
+        default: {
             hc.send({type: 'error', error: 'unknown_command', message: 'Unknown command', pid: data.pid});
             break;
+        }
     }
 }
 

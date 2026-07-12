@@ -1,7 +1,7 @@
-import { Server, ServerConfig } from "./server.js";
+import { Server } from "./server.js";
 import LynkWSServer from "./ws.js";
 import LynkHTTPServer from "./http.js";
-
+import { ServerConfig } from "./config.js";
 
 const ServerMap = {
     ws: LynkWSServer,
