@@ -1,0 +1,11 @@
+{
+  "name": "lynk-service-examples",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start:ws": "node ws_server.js --protocol ws"
+  },
+  "dependencies": {
+    "ws": "^8.13.0"
+  }
+}

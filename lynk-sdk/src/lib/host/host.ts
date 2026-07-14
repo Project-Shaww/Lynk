@@ -167,7 +167,7 @@ class Host {
      */
     public connect(): Promise<void> {
         return new Promise((res, rej) => {
-            const url = 'ws://' + this._getLocalUrl();
+            const url = 'ws://' + this._getLocalUrl("/socket");
             try {
                 this.ws = new WebSocket(url);
                 this.ws.onopen = (e) => this.handleWSOpen(e);

@@ -1,0 +1,4 @@
+{
+    "ws": "node examples/ws_server.js",
+    "http": "node examples/http_server.js"
+}
