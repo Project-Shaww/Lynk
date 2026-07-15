@@ -91,7 +91,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
     let id = Uuid::new_v4().to_string();
     let welcome = serde_json::json!({"type":"welcome","id": id});
-    let _ = out_tx.send(Message::Text(welcome.to_string()));
+    let _ = out_tx.send(Message::Text(welcome.to_string().into()));
 
     let servers = state.servers.clone();
 
@@ -105,7 +105,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
             Message::Binary(b) => {
                 let encoded = base64::engine::general_purpose::STANDARD.encode(&b);
                 let err = serde_json::json!({"type":"error","message":"binary_not_supported","detail":"Binary payload received; encode as base64 in JSON payload"});
-                let _ = out_tx.send(Message::Text(err.to_string()));
+                let _ = out_tx.send(Message::Text(err.to_string().into()));
                 info!("received binary message (base64_len={})", encoded.len());
             }
             Message::Close(_) => break,
@@ -140,32 +140,32 @@ async fn handle_host_message(v: Value, host_id: &str, servers: ServersMap, out_t
 
     if id_field != host_id {
         let resp = serde_json::json!({"type":"error","error":"invalid_id","message":"id mismatch","pid": pid});
-        let _ = out_tx.send(Message::Text(resp.to_string()));
+        let _ = out_tx.send(Message::Text(resp.to_string().into()));
         return;
     }
 
     match msg_type {
         "ping" => {
             let resp = serde_json::json!({"type":"pong","pid": pid});
-            let _ = out_tx.send(Message::Text(resp.to_string()));
+            let _ = out_tx.send(Message::Text(resp.to_string().into()));
         }
         "create_server" => {
             let protocol = obj.get("protocol").and_then(|p| p.as_str()).unwrap_or("");
             let config = obj.get("config").cloned().unwrap_or(Value::Null);
             if protocol.is_empty() {
                 let resp = serde_json::json!({"type":"error","error":"create_server:protocol","message":"Invalid protocol","pid": pid});
-                let _ = out_tx.send(Message::Text(resp.to_string()));
+                let _ = out_tx.send(Message::Text(resp.to_string().into()));
                 return;
             }
 
             match spawn_server(protocol.to_string(), config, &host_id, servers.clone(), out_tx.clone(), servers_cmds.clone()).await {
                 Ok((sid, port, _child_pid)) => {
                     let resp = serde_json::json!({"type":"server_created","pid": pid, "sid": sid, "port": port, "protocol": protocol});
-                    let _ = out_tx.send(Message::Text(resp.to_string()));
+                    let _ = out_tx.send(Message::Text(resp.to_string().into()));
                 }
                 Err(err_msg) => {
                     let resp = serde_json::json!({"type":"error","error":"create_server:internal","message":"Error while creating server","error_message": err_msg, "pid": pid});
-                    let _ = out_tx.send(Message::Text(resp.to_string()));
+                    let _ = out_tx.send(Message::Text(resp.to_string().into()));
                 }
             }
         }
@@ -175,14 +175,14 @@ async fn handle_host_message(v: Value, host_id: &str, servers: ServersMap, out_t
                 if let Some(inst) = map.remove(sid) {
                     let _ = inst.writer.send(ChildSend::Json(serde_json::json!({"type":"close"})));
                     let resp = serde_json::json!({"type":"server_closed","pid": pid, "sid": sid});
-                    let _ = out_tx.send(Message::Text(resp.to_string()));
+                    let _ = out_tx.send(Message::Text(resp.to_string().into()));
                 } else {
                     let resp = serde_json::json!({"type":"error","error":"close_server:not_found","message":"Server not found","pid": pid});
-                    let _ = out_tx.send(Message::Text(resp.to_string()));
+                    let _ = out_tx.send(Message::Text(resp.to_string().into()));
                 }
             } else {
                 let resp = serde_json::json!({"type":"error","error":"close_server:not_found","message":"Server not found","pid": pid});
-                let _ = out_tx.send(Message::Text(resp.to_string()));
+                let _ = out_tx.send(Message::Text(resp.to_string().into()));
             }
         }
         "message_server" => {
@@ -223,14 +223,14 @@ async fn handle_host_message(v: Value, host_id: &str, servers: ServersMap, out_t
                     }
                     let _ = inst.writer.send(ChildSend::Json(child_payload));
                     let resp = serde_json::json!({"type":"message_server_sent","pid": pid, "sid": sid});
-                    let _ = out_tx.send(Message::Text(resp.to_string()));
+                    let _ = out_tx.send(Message::Text(resp.to_string().into()));
                 } else {
                     let resp = serde_json::json!({"type":"error","error":"message_server:not_found","message":"Server not found","pid": pid});
-                    let _ = out_tx.send(Message::Text(resp.to_string()));
+                    let _ = out_tx.send(Message::Text(resp.to_string().into()));
                 }
             } else {
                 let resp = serde_json::json!({"type":"error","error":"message_server:not_found","message":"Server not found","pid": pid});
-                let _ = out_tx.send(Message::Text(resp.to_string()));
+                let _ = out_tx.send(Message::Text(resp.to_string().into()));
             }
         }
 
@@ -240,20 +240,20 @@ async fn handle_host_message(v: Value, host_id: &str, servers: ServersMap, out_t
                 if let Some(inst) = map.get_mut(sid) {
                     inst.config = config_val.clone();
                     let resp = serde_json::json!({"type":"server_updated","pid": pid, "sid": sid});
-                    let _ = out_tx.send(Message::Text(resp.to_string()));
+                    let _ = out_tx.send(Message::Text(resp.to_string().into()));
                 } else {
                     let resp = serde_json::json!({"type":"error","error":"update_server:not_found","message":"Server not found","pid": pid});
-                    let _ = out_tx.send(Message::Text(resp.to_string()));
+                    let _ = out_tx.send(Message::Text(resp.to_string().into()));
                 }
             } else {
                 let resp = serde_json::json!({"type":"error","error":"update_server:invalid_request","message":"Invalid update request","pid": pid});
-                let _ = out_tx.send(Message::Text(resp.to_string()));
+                let _ = out_tx.send(Message::Text(resp.to_string().into()));
             }
         }
 
         _ => {
             let resp = serde_json::json!({"type":"error","error":"unknown_command","message":"Unknown command","pid": pid});
-            let _ = out_tx.send(Message::Text(resp.to_string()));
+            let _ = out_tx.send(Message::Text(resp.to_string().into()));
         }
     }
 }
@@ -347,7 +347,7 @@ async fn spawn_server(protocol: String, config: Value, host_id: &str, servers: S
                     }
 
                     let forward = serde_json::json!({"type":"server_message","sid": sid_clone, "payload": val});
-                    let _ = out_tx_clone.send(Message::Text(forward.to_string()));
+                    let _ = out_tx_clone.send(Message::Text(forward.to_string().into()));
                 }
                 Err(e) => {
                     error!("failed parse child json: {} -- line: {}", e, line);
@@ -371,7 +371,7 @@ async fn spawn_server(protocol: String, config: Value, host_id: &str, servers: S
                 let mut map = servers_clone.lock().await;
                 if map.remove(&sid_clone_process).is_some() {
                     let resp = serde_json::json!({"type":"server_closed","sid": sid_clone_process, "error": "child_process_failed", "message": e.to_string()});
-                    let _ = out_tx_process.send(Message::Text(resp.to_string()));
+                    let _ = out_tx_process.send(Message::Text(resp.to_string().into()));
                 }
                 return;
             }
@@ -382,7 +382,7 @@ async fn spawn_server(protocol: String, config: Value, host_id: &str, servers: S
             let mut map = servers_clone.lock().await;
             if map.remove(&sid_clone_process).is_some() {
                 let resp = serde_json::json!({"type":"server_closed","sid": sid_clone_process, "error": "child_exit", "message": format!("exit status: {}", exited)});
-                let _ = out_tx_process.send(Message::Text(resp.to_string()));
+                let _ = out_tx_process.send(Message::Text(resp.to_string().into()));
             }
         } else {
             let mut map = servers_clone.lock().await;
