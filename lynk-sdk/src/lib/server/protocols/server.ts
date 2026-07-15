@@ -89,6 +89,62 @@ class Server<E extends string = ServerEvent> {
     public getConfig(): ServerConfig { return this.config; }
 
     /**
+     * Sets the name of the server.
+     * @param name - The name of the server.
+     */
+    public setName(name: string): void {
+        this.config.name = name;
+        this._host.request('update_server', { sid: this.id, config: this.config });
+    }
+
+    /**
+     * Sets the service of the server.
+     * @param service - The service of the server.
+     */
+    public setService(service: string): void {
+        this.config.service = service;
+        this._host.request('update_server', { sid: this.id, config: this.config });
+    }
+
+    /**
+     * Sets the URL of the server.
+     * @param url - The URL of the server.
+     */
+    public setUrl(url: string): void {
+        this.config.url = url;
+        this._host.request('update_server', { sid: this.id, config: this.config });
+    }
+
+    /**
+     * Updates the configuration of the server.
+     * @param config - The configuration to update.
+     */
+    public updateConfig(config: Partial<ServerConfig>) {
+        for (const [key, value] of Object.entries(config)) {
+            this.config[key as keyof ServerConfig] = value;
+        }
+        this._host.request('update_server', { sid: this.id, config: this.config });
+    }
+
+    /**
+     * Gets the name of the server.
+     * @returns The name of the server.
+     */
+    public getName(): string { return this.config.name || '';}
+
+    /**
+     * Gets the service of the server.
+     * @returns The service of the server.
+     */
+    public getService(): string { return this.config.service || ''; }
+
+    /**
+     * Gets the URL of the server.
+     * @returns The URL of the server.
+     */
+    public getUrl(): string { return this.config.url || ''; }
+
+    /**
      * Registers a listener for a specific event.
      * 
      * @description 

@@ -10,6 +10,7 @@
 <script type="text/javascript">
     (async () => {
     const Lynk = await import('../../lynk-sdk/dist/index.js');
+    window.Lynk = Lynk;
     const host = new Lynk.Host();
     await host.connect();
     console.log(host);

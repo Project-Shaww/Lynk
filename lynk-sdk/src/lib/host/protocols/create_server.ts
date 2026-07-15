@@ -3,7 +3,7 @@ import type { HandlerResponse } from './types/response.js';
 import { ServerMap, type ServerConfig } from '../../server/index.js';
 
 export interface CreateServerData<T extends keyof ServerMap> {
-    server: ServerMap[T];
+    server: InstanceType<ServerMap[T]>;
 }
 
 interface ServerData<T extends keyof ServerMap> {

@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const Lynk = await import('../lynk.js');
         const host = new Lynk.Host();
         await host.connect();
-        const server = await host.createServer('ws');
+        const server = await host.createServer('ws', { name: 'Chat Room', service: 'lynk_chat', url: window.location, version: '0.0.1' });
         chatStatus.innerText = 'Server created';
         chatURL.innerText = 'ws://'+window.location.hostname+':' + server.getPort();
         chatURL.title = 'Click to copy';

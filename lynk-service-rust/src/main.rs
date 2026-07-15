@@ -1,6 +1,6 @@
-use axum::{extract::{ws::{Message, WebSocket, WebSocketUpgrade}, State}, response::IntoResponse, routing::get, Router};
+use axum::{extract::{ws::{Message, WebSocket, WebSocketUpgrade}, State}, response::IntoResponse, routing::get, Json, Router};
 use futures::{sink::SinkExt, stream::StreamExt};
-use serde_json::Value;
+use serde_json::{Value, Map};
 use shell_words;
 use std::{collections::HashMap, env, sync::Arc};
 use tokio::{io::{AsyncBufReadExt, BufReader, AsyncWriteExt}, process::Command, sync::{mpsc, Mutex, oneshot}, time};
@@ -8,12 +8,12 @@ use std::time::Duration;
 use uuid::Uuid;
 use tracing::{info, error};
 use base64::Engine;
+use tower_http::cors::{Any, CorsLayer};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing_subscriber::fmt::init();
 
-    // Load servers configuration from `servers.json` (optional)
     let mut servers_cmds_map: HashMap<String, String> = HashMap::new();
     if let Ok(s) = std::fs::read_to_string("servers.json") {
         if let Ok(json_map) = serde_json::from_str::<HashMap<String, String>>(&s) {
@@ -22,14 +22,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
 
-    let app_state = AppState { servers_cmds: Arc::new(servers_cmds_map) };
+    let app_state = AppState { servers_cmds: Arc::new(servers_cmds_map), servers: Arc::new(Mutex::new(HashMap::new())) };
 
-    let app = Router::new().route("/socket", get(ws_handler)).with_state(app_state);
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    let app = Router::new()
+        .route("/socket", get(ws_handler))
+        .route("/api/servers", get(list_servers))
+        .with_state(app_state)
+        .layer(cors);
 
     let addr = "0.0.0.0:51738";
     info!(%addr, "Starting Lynk Rust service");
 
-    // bind a TcpListener and hand it to axum's serve convenience helper
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
 
@@ -39,6 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 #[derive(Clone)]
 struct AppState {
     servers_cmds: Arc<HashMap<String, String>>,
+    servers: ServersMap,
 }
 
 type ServersMap = Arc<Mutex<HashMap<String, ServerInstance>>>;
@@ -48,14 +57,16 @@ enum ChildSend {
 }
 
 struct ServerInstance {
+    host_id: String,
     _sid: String,
     _pid: u32,
-    // Sender to forward messages to the child process stdin task
     writer: mpsc::UnboundedSender<ChildSend>,
+    protocol: String,
+    port: u16,
+    config: Value,
 }
 
 async fn ws_handler(State(state): State<AppState>, ws: WebSocketUpgrade) -> impl IntoResponse {
-    // clone the Arc to move into the upgrade handler
     let state = state.clone();
     ws.on_upgrade(move |socket| handle_socket_with_state(socket, state))
 }
@@ -67,10 +78,8 @@ async fn handle_socket_with_state(socket: WebSocket, state: AppState) {
 async fn handle_socket(socket: WebSocket, state: AppState) {
     let (mut sender, mut receiver) = socket.split();
 
-    // outgoing channel: other tasks send messages here to forward to websocket
     let (out_tx, mut out_rx) = mpsc::unbounded_channel::<Message>();
 
-    // spawn task to forward outgoing messages to websocket sink
     tokio::spawn(async move {
         while let Some(msg) = out_rx.recv().await {
             if let Err(e) = sender.send(msg).await {
@@ -81,11 +90,10 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     });
 
     let id = Uuid::new_v4().to_string();
-    // send welcome
     let welcome = serde_json::json!({"type":"welcome","id": id});
     let _ = out_tx.send(Message::Text(welcome.to_string()));
 
-    let servers: ServersMap = Arc::new(Mutex::new(HashMap::new()));
+    let servers = state.servers.clone();
 
     while let Some(Ok(msg)) = receiver.next().await {
         match msg {
@@ -95,8 +103,6 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                 }
             }
             Message::Binary(b) => {
-                // Binary messages are not used for control in the original implementation.
-                // We log and ignore, or you could design a custom binary framing.
                 let encoded = base64::engine::general_purpose::STANDARD.encode(&b);
                 let err = serde_json::json!({"type":"error","message":"binary_not_supported","detail":"Binary payload received; encode as base64 in JSON payload"});
                 let _ = out_tx.send(Message::Text(err.to_string()));
@@ -107,7 +113,19 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
         }
     }
 
-    // connection closed: cleanup any servers owned by this host? In this simple model we keep them
+    {
+        let map = servers.lock().await;
+        let mut senders = Vec::new();
+        for (_, inst) in map.iter() {
+            if inst.host_id == id {
+                senders.push(inst.writer.clone());
+            }
+        }
+        for s in senders {
+            let _ = s.send(ChildSend::Json(serde_json::json!({"type":"close"})));
+        }
+    }
+
     info!("host {} disconnected", id);
 }
 
@@ -120,7 +138,6 @@ async fn handle_host_message(v: Value, host_id: &str, servers: ServersMap, out_t
     let id_field = obj.get("id").and_then(|s| s.as_str()).unwrap_or("");
     let pid = obj.get("pid").and_then(|p| p.as_u64()).unwrap_or(0) as u32;
 
-    // enforce id matching
     if id_field != host_id {
         let resp = serde_json::json!({"type":"error","error":"invalid_id","message":"id mismatch","pid": pid});
         let _ = out_tx.send(Message::Text(resp.to_string()));
@@ -141,7 +158,7 @@ async fn handle_host_message(v: Value, host_id: &str, servers: ServersMap, out_t
                 return;
             }
 
-            match spawn_server(protocol.to_string(), config, servers.clone(), out_tx.clone(), servers_cmds.clone()).await {
+            match spawn_server(protocol.to_string(), config, &host_id, servers.clone(), out_tx.clone(), servers_cmds.clone()).await {
                 Ok((sid, port, _child_pid)) => {
                     let resp = serde_json::json!({"type":"server_created","pid": pid, "sid": sid, "port": port, "protocol": protocol});
                     let _ = out_tx.send(Message::Text(resp.to_string()));
@@ -156,7 +173,6 @@ async fn handle_host_message(v: Value, host_id: &str, servers: ServersMap, out_t
             if let Some(sid) = obj.get("sid").and_then(|s| s.as_str()) {
                 let mut map = servers.lock().await;
                 if let Some(inst) = map.remove(sid) {
-                    // try to notify child to exit by sending a close message (JSON control), then drop
                     let _ = inst.writer.send(ChildSend::Json(serde_json::json!({"type":"close"})));
                     let resp = serde_json::json!({"type":"server_closed","pid": pid, "sid": sid});
                     let _ = out_tx.send(Message::Text(resp.to_string()));
@@ -174,7 +190,6 @@ async fn handle_host_message(v: Value, host_id: &str, servers: ServersMap, out_t
                 let payload = obj.get("payload").cloned().unwrap_or(Value::Null);
                 let map = servers.lock().await;
                 if let Some(inst) = map.get(sid) {
-                    // forward to child: send a JSON envelope with type "message"
                     let mut child_payload = serde_json::json!({"type": "message", "payload": null});
                     let mut is_bytes = false;
                     let value = if payload.is_string() {
@@ -218,6 +233,24 @@ async fn handle_host_message(v: Value, host_id: &str, servers: ServersMap, out_t
                 let _ = out_tx.send(Message::Text(resp.to_string()));
             }
         }
+
+        "update_server" => {
+            if let (Some(sid), Some(config_val)) = (obj.get("sid").and_then(|s| s.as_str()), obj.get("config")) {
+                let mut map = servers.lock().await;
+                if let Some(inst) = map.get_mut(sid) {
+                    inst.config = config_val.clone();
+                    let resp = serde_json::json!({"type":"server_updated","pid": pid, "sid": sid});
+                    let _ = out_tx.send(Message::Text(resp.to_string()));
+                } else {
+                    let resp = serde_json::json!({"type":"error","error":"update_server:not_found","message":"Server not found","pid": pid});
+                    let _ = out_tx.send(Message::Text(resp.to_string()));
+                }
+            } else {
+                let resp = serde_json::json!({"type":"error","error":"update_server:invalid_request","message":"Invalid update request","pid": pid});
+                let _ = out_tx.send(Message::Text(resp.to_string()));
+            }
+        }
+
         _ => {
             let resp = serde_json::json!({"type":"error","error":"unknown_command","message":"Unknown command","pid": pid});
             let _ = out_tx.send(Message::Text(resp.to_string()));
@@ -225,13 +258,11 @@ async fn handle_host_message(v: Value, host_id: &str, servers: ServersMap, out_t
     }
 }
 
-async fn spawn_server(protocol: String, _config: Value, servers: ServersMap, out_tx: mpsc::UnboundedSender<Message>, servers_cmds: Arc<HashMap<String, String>>) -> Result<(String, u16, u32), String> {
-    // First check servers_cmds map loaded from servers.json
+async fn spawn_server(protocol: String, config: Value, host_id: &str, servers: ServersMap, out_tx: mpsc::UnboundedSender<Message>, servers_cmds: Arc<HashMap<String, String>>) -> Result<(String, u16, u32), String> {
     let mut cmd_opt: Option<String> = None;
     if let Some(c) = servers_cmds.get(&protocol) {
         cmd_opt = Some(c.clone());
     }
-    // Fallback to environment variable
     if cmd_opt.is_none() {
         let key = format!("LYNK_SERVER_CMD_{}", protocol.to_uppercase());
         if let Ok(env_cmd) = env::var(&key) {
@@ -240,8 +271,6 @@ async fn spawn_server(protocol: String, _config: Value, servers: ServersMap, out
     }
     let cmd = cmd_opt.ok_or_else(|| format!("server command not configured: set servers.json or env LYNK_SERVER_CMD_{}", protocol.to_uppercase()))?;
 
-    // spawn the child process with piped stdio
-    // split command into program + args
     let parts = match shell_words::split(&cmd) {
         Ok(p) if !p.is_empty() => p,
         _ => return Err(format!("invalid command configured: {}", cmd)),
@@ -261,7 +290,6 @@ async fn spawn_server(protocol: String, _config: Value, servers: ServersMap, out
     let pid = child.id().unwrap_or(0);
     let child = Arc::new(Mutex::new(child));
 
-    // setup writer channel to child's stdin
     let stdin = {
         let mut child_guard = child.lock().await;
         child_guard.stdin.take().ok_or("child stdin not available")?
@@ -269,7 +297,6 @@ async fn spawn_server(protocol: String, _config: Value, servers: ServersMap, out
     let mut stdin = tokio::io::BufWriter::new(stdin);
     let (writer_tx, mut writer_rx) = mpsc::unbounded_channel::<ChildSend>();
 
-    // writer task: serialise JSON lines to child's stdin
     tokio::spawn(async move {
         while let Some(ChildSend::Json(v)) = writer_rx.recv().await {
             if let Ok(s) = serde_json::to_string(&v) {
@@ -289,7 +316,6 @@ async fn spawn_server(protocol: String, _config: Value, servers: ServersMap, out
         }
     });
 
-    // prepare to read child's stdout lines
     let stdout = {
         let mut child_guard = child.lock().await;
         child_guard.stdout.take().ok_or("child stdout not available")?
@@ -297,7 +323,6 @@ async fn spawn_server(protocol: String, _config: Value, servers: ServersMap, out
     let reader = BufReader::new(stdout);
     let mut lines = reader.lines();
 
-    // wait for ready message (with timeout). We'll use a oneshot to receive the first ready port
     let (ready_tx, ready_rx) = oneshot::channel::<u16>();
     let mut ready_tx = Some(ready_tx);
 
@@ -305,7 +330,6 @@ async fn spawn_server(protocol: String, _config: Value, servers: ServersMap, out
     let sid = Uuid::new_v4().to_string();
     let sid_clone = sid.clone();
 
-    // Spawn a task that reads lines and forwards to host; it will notify ready via oneshot
     tokio::spawn(async move {
         while let Ok(Some(line)) = lines.next_line().await {
             match serde_json::from_str::<Value>(&line) {
@@ -322,7 +346,6 @@ async fn spawn_server(protocol: String, _config: Value, servers: ServersMap, out
                         }
                     }
 
-                    // forward any child message to host as server_message
                     let forward = serde_json::json!({"type":"server_message","sid": sid_clone, "payload": val});
                     let _ = out_tx_clone.send(Message::Text(forward.to_string()));
                 }
@@ -333,13 +356,6 @@ async fn spawn_server(protocol: String, _config: Value, servers: ServersMap, out
         }
         info!("child stdout reader exiting for sid {}", sid_clone);
     });
-
-    // register server instance
-    let instance = ServerInstance { _sid: sid.clone(), _pid: pid, writer: writer_tx.clone() };
-    {
-        let mut map = servers.lock().await;
-        map.insert(sid.clone(), instance);
-    }
 
     let out_tx_process = out_tx.clone();
     let servers_clone = servers.clone();
@@ -374,7 +390,6 @@ async fn spawn_server(protocol: String, _config: Value, servers: ServersMap, out
         }
     };
 
-    // wait up to 5s for ready
     let mut port: u16 = 0;
     match time::timeout(Duration::from_secs(5), ready_rx).await {
         Ok(Ok(p)) => {
@@ -389,8 +404,6 @@ async fn spawn_server(protocol: String, _config: Value, servers: ServersMap, out
     }
 
     if port == 0 {
-        let mut map = servers.lock().await;
-        map.remove(&sid);
         let mut child_guard = child.lock().await;
         if let Err(e) = child_guard.kill().await {
             error!("failed to kill child {} after ready failure: {}", sid, e);
@@ -400,5 +413,39 @@ async fn spawn_server(protocol: String, _config: Value, servers: ServersMap, out
 
     tokio::spawn(child_wait);
 
+    let instance = ServerInstance { host_id: String::from(host_id), _sid: sid.clone(), _pid: pid, writer: writer_tx.clone(), protocol: protocol.clone(), port: port.clone(), config: config.clone() };
+    {
+        let mut map = servers.lock().await;
+        map.insert(sid.clone(), instance);
+    }
+
     Ok((sid, port, pid))
+}
+
+async fn list_servers(State(state): State<AppState>) -> impl IntoResponse {
+    let map = state.servers.lock().await;
+    let mut servers = Vec::with_capacity(map.len());
+
+    for (sid, inst) in map.iter() {
+        let mut metadata = match inst.config.clone() {
+            Value::Object(o) => Value::Object(o),
+            other => {
+                let mut obj = Map::new();
+                obj.insert("config".into(), other);
+                Value::Object(obj)
+            }
+        };
+
+        if let Value::Object(ref mut obj) = metadata {
+            obj.insert("port".into(), Value::Number(serde_json::Number::from(inst.port)));
+            obj.insert("protocol".into(), Value::String(inst.protocol.clone()));
+        }
+
+        servers.push(serde_json::json!({
+            "id": sid,
+            "metadata": metadata,
+        }));
+    }
+
+    Json(servers)
 }

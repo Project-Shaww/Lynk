@@ -278,10 +278,10 @@ class Host {
      * await host.connect();
      * 
      * const server = await host.createServer('ws');
-     * console.log(server.getId());
+     * console.log(server.getPort());
      * ```
      */
-    public async createServer<T extends keyof ServerMap>(protocol: T, config: ServerConfig): Promise<ServerMap[T]> {
+    public async createServer<T extends keyof ServerMap>(protocol: T, config: ServerConfig): Promise<InstanceType<ServerMap[T]>> {
         return new Promise((res, rej) => {this.request('create_server', { protocol, config }, 15000).then((d) => res(d.server)).catch(rej)});
     }
 
