@@ -46,6 +46,17 @@ p {
     color: white;
 }
 
+.system-message-container {
+    justify-content: center;
+}
+
+.system-message-bubble {
+    background-color: transparent;
+    color: #444;
+    box-shadow: none;
+    padding: 8px;
+}
+
 .message-input-container {
     display: flex;
     align-items: center;

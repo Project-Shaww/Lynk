@@ -20,16 +20,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let host = false;
 
-    function displayMessage(message, isSender = false) {
+    function displayMessage(message, type = 'message') {
         const messageContainer = document.createElement('div');
         const messageElement = document.createElement('div');
         messageElement.textContent = message;
         
         messageContainer.classList.add('message-container');
         
-        if (isSender) {
+        if (type == 'sender') {
             messageContainer.classList.add('sender-message-container');
             messageElement.classList.add('message-bubble', 'sender-message-bubble');
+        } else if (type == 'system') {
+            messageContainer.classList.add('system-message-container');
+            messageElement.classList.add('message-bubble', 'system-message-bubble');
         } else {
             messageElement.classList.add('message-bubble');
         }
@@ -66,14 +69,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 'chat-message-listener');
 
         server.on('clientJoined', (data) => {
-            displayMessage('A member joined the chat');
+            displayMessage('A member joined the chat', 'system');
             members++;
             server.updateConfig({options: {members: members}});
             server.broadcast({type:'new_member'});
         }, 'chat-client-joined-listener');
 
         server.on('clientLeft', (data) => {
-            displayMessage('A member left the chat');
+            displayMessage('A member left the chat', 'system');
             members--;
             server.updateConfig({options: {members: members}});
             server.broadcast({type:'member_left'});
@@ -82,7 +85,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         sendButton.addEventListener('click', () => {
             const message = usernameInput.value + ': ' + messageInput.value;
             server.broadcast({type:'message',text:message});
-            displayMessage(message, true);
+            displayMessage(messageInput.value, 'sender');
             messageInput.value = '';
         });
 
@@ -93,12 +96,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         chatName.addEventListener('change', () => {
             server.updateConfig({name: chatName.value});
             server.broadcast({type:'update_name', name:chatName.value});
-            displayMessage('Chat name updated to ' + chatName.value);
+            displayMessage('Chat name updated to ' + chatName.value, 'system');
         });
 
         document.addEventListener('beforeunload', (e) => {
             server.close();
         });
+
+        chatName.addEventListener('keypress', (e) => e.key === 'Enter' ? chatName.blur() : null);
+        usernameInput.addEventListener('keypress', (e) => e.key === 'Enter' ? usernameInput.blur() : null);
     }
 
     async function initClientChat(server) {
@@ -149,11 +155,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (message.type == 'member_left') {
                 displayMessage('A member left the chat');
             } else if (message.type == 'update_name') {
-                displayMessage('Chat name updated to ' + message.name);
+                displayMessage('Chat name updated to ' + message.name, 'system');
                 chatName.originalText = message.name;
                 chatName.value = message.name;
             } else if (message.type == 'new_member') {
-                displayMessage('A member joined the chat');
+                displayMessage('A member joined the chat', 'system');
             } else if (message.type == 'message') {
                 if (message.text == lastSentMessage) {
                     lastSentMessage = null;
@@ -166,7 +172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const message = usernameInput.value + ': ' + messageInput.value;
             ws.send(message);
             lastSentMessage = message;
-            displayMessage(message, true);
+            displayMessage(messageInput.value, 'sender');
             messageInput.value = '';
         });
 
@@ -177,6 +183,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.addEventListener('beforeunload', (e) => {
             ws.close();
         });
+        
+        usernameInput.addEventListener('keypress', (e) => e.key === 'Enter' ? usernameInput.blur() : null);
     }
 
     async function getAvailableChats() {
