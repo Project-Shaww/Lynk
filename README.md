@@ -12,16 +12,16 @@ Lynk is divided into two primary layers:
 
 ```mermaid
 graph TD
-    subgraph Browser Application (Host)
+    subgraph "Browser Application (Host)"
         A[Lynk Web App] <-->|Import SDK| B[Lynk SDK Host Class]
     end
 
-    subgraph Local Machine (Background Daemon)
+    subgraph "Local Machine (Background Daemon)"
         B <-->|WS on localhost:51738/socket| C[Lynk Rust Service]
         C <-->|stdin / stdout JSON-Lines| D[Spawned Addon Server Process]
     end
 
-    subgraph Local Area Network (LAN)
+    subgraph "Local Area Network (LAN)"
         E[LAN Client App] <-->|Direct HTTP/WS Traffic| D
         E <-->|LAN Discovery GET /api/servers| C
     end
