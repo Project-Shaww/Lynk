@@ -1,0 +1,25 @@
+{
+    "addons": {
+        "examples": {
+            "version": "1.0.0",
+            "runtimes": [
+                {
+                    "id": "node",
+                    "command": "node"
+                }
+            ],
+            "servers": [
+                {
+                    "protocol": "ws",
+                    "runtime_engine": "node",
+                    "args": ["examples/ws_server.js"]
+                },
+                {
+                    "protocol": "http",
+                    "runtime_engine": "node",
+                    "args": ["examples/http_server.js"]
+                }
+            ]
+        }
+    }
+}
