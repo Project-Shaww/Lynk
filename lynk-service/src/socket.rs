@@ -105,7 +105,7 @@ async fn handle_host_message(v: Value, host_id: &str, servers: ServersMap, out_t
 
             match spawn_server(protocol.to_string(), config, &host_id, servers.clone(), out_tx.clone(), addons.clone()).await {
                 Ok((sid, port, _child_pid)) => {
-                    let resp = serde_json::json!({"type":"server_created","pid": pid, "sid": sid, "port": port, "protocol": protocol});
+                    let resp = serde_json::json!({"type":"server_created","pid": pid, "sid": sid, "port": port, "protocol": protocol, "config": obj.get("config").cloned().unwrap_or(Value::Null)});
                     let _ = out_tx.send(Message::Text(resp.to_string().into()));
                 }
                 Err(err_msg) => {

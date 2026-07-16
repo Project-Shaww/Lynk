@@ -19,7 +19,11 @@
               <p>Join a chat</p>
               <div>
                 <input type="text" id="clientInput" placeholder="Enter server ip">
-                <button id="clientSubmitButton">Join Chat</button>
+                <button id="clientSubmitButton">Search for Chats</button>
+              </div>
+              <div id="availableChatsContainer" class="hidden">
+                <p id="noAvailableChatsText">No chats found</p>
+                <div id="availableChatsList"></div>
               </div>
             </div>
         </div>
@@ -28,6 +32,7 @@
     <div class="chat-header">
         <h1>Lynk Chat</h1>
         <p id="chatURL"></p>
+        <input id="chatName"></input>
         <p id="chatStatus"></p>
         <input type="text" id="usernameInput" placeholder="Enter username">
     </div>

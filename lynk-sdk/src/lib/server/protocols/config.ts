@@ -3,4 +3,5 @@ export interface ServerConfig {
     service?: string;
     url?: string;
     version?: string;
+    options?: Record<string, any>;
 }

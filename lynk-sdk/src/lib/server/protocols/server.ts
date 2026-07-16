@@ -63,6 +63,10 @@ class Server<E extends string = ServerEvent> {
         if (callback) callback();
         return true;
     }
+
+    protected updateServer() {
+        this._host.request('update_server', { sid: this.id, config: this.config });
+    }
     
     /**
      * Gets the ID of the server.
@@ -94,7 +98,7 @@ class Server<E extends string = ServerEvent> {
      */
     public setName(name: string): void {
         this.config.name = name;
-        this._host.request('update_server', { sid: this.id, config: this.config });
+        this.updateServer();
     }
 
     /**
@@ -103,7 +107,7 @@ class Server<E extends string = ServerEvent> {
      */
     public setService(service: string): void {
         this.config.service = service;
-        this._host.request('update_server', { sid: this.id, config: this.config });
+        this.updateServer();
     }
 
     /**
@@ -112,7 +116,7 @@ class Server<E extends string = ServerEvent> {
      */
     public setUrl(url: string): void {
         this.config.url = url;
-        this._host.request('update_server', { sid: this.id, config: this.config });
+        this.updateServer();
     }
 
     /**
@@ -120,10 +124,8 @@ class Server<E extends string = ServerEvent> {
      * @param config - The configuration to update.
      */
     public updateConfig(config: Partial<ServerConfig>) {
-        for (const [key, value] of Object.entries(config)) {
-            this.config[key as keyof ServerConfig] = value;
-        }
-        this._host.request('update_server', { sid: this.id, config: this.config });
+        this.config = { ...this.config, ...config };
+        this.updateServer();
     }
 
     /**

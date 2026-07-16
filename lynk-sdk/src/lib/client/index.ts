@@ -7,7 +7,8 @@ interface Service {
     name?: string,
     type?: string,
     service_url?: string,
-    version?: string
+    version?: string,
+    options?: Record<string, any>
 }
 
 /**
@@ -22,6 +23,7 @@ interface Service {
  * ```
  */
 async function discover_all(ip: string): Promise<Service[]> {
+    if (!ip) ip = '127.0.0.1';
     try {
         const url = new URL('http://' + getLocalUrl('/api/servers'));
         url.hostname = ip;
@@ -37,9 +39,10 @@ async function discover_all(ip: string): Promise<Service[]> {
                 name: s.metadata?.name,
                 type: s.metadata?.service,
                 service_url: s.metadata?.url,
-                version: s.metadata?.version
+                version: s.metadata?.version,
+                options: s.metadata?.options
             })
-        })
+        });
         return services;
     } catch (error) {
         return [];
