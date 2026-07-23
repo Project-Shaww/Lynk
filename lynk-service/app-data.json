@@ -1,7 +1,10 @@
 {
+    "version": "0.1.0b",
     "addons": {
         "examples": {
+            "name": "Example Servers",
             "version": "1.0.0",
+            "manifest": "example.com",
             "runtimes": [
                 {
                     "id": "node",

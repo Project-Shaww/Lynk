@@ -5,9 +5,15 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AddonDefinition {
-    #[serde(rename="version")]
+    #[serde(default, rename="name")]
+    pub _name: String,
+    #[serde(default, rename="description")]
+    pub _description: Option<String>,
+    #[serde(default, rename="manifest")]
+    pub _manifest: String,
+    #[serde(default, rename="version")]
     pub _version: String,
-    #[serde(rename="dependencies")]
+    #[serde(default, rename="dependencies")]
     pub _dependencies: Option<Vec<String>>,
     #[serde(default)]
     pub runtimes: Option<Vec<RuntimeDefinition>>,

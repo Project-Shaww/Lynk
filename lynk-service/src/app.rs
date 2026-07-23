@@ -7,6 +7,8 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AppDataFile {
+    #[serde(name="version")]
+    pub _version: String,
     #[serde(default)]
     pub addons: HashMap<String, AddonDefinition>,
 }
