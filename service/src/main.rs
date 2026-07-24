@@ -3,7 +3,7 @@ mod addons;
 mod servers;
 mod socket;
 
-use crate::addons::load_addons;
+use crate::addons::{load_addons, list_addons, list_protocols};
 use crate::servers::list_servers;
 use crate::app::AppState;
 use crate::socket::ws_handler;
@@ -31,6 +31,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let app = Router::new()
         .route("/socket", get(ws_handler))
         .route("/api/servers", get(list_servers))
+        .route("/api/addons", get(list_addons))
+        .route("/api/protocols", get(list_protocols))
         .with_state(app_state)
         .layer(cors);
 
