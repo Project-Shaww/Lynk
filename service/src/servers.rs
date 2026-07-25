@@ -1,4 +1,4 @@
-use crate::addons::AddonDefinition;
+use crate::addons::CompiledManifest;
 use crate::app::AppState;
 
 use axum::{extract::{ws::Message, State}, response::IntoResponse, Json};
@@ -15,6 +15,7 @@ pub enum ChildSend {
     Json(Value),
 }
 
+#[derive(Debug, Clone)]
 pub struct ServerInstance {
     pub host_id: String,
     pub _sid: String,
@@ -25,30 +26,35 @@ pub struct ServerInstance {
     pub config: Value,
 }
 
-fn resolve_server_command(protocol: &str, addons: &HashMap<String, AddonDefinition>) -> Result<(String, Vec<String>, Option<String>), String> {
-    let server = addons.values().find_map(|addon| {
-        addon.servers.as_ref()?.iter().find(|server| server.protocol == protocol || server.protocol.is_empty()).cloned()
-    }).ok_or_else(|| format!("no server entry found for protocol {}", protocol))?;
+fn resolve_server_command(protocol: &str, manifest: &CompiledManifest) -> Result<(String, Vec<String>, Option<String>), String> {
+    let server = manifest
+        .servers
+        .get(protocol)
+        .cloned()
+        .ok_or_else(|| format!("no server entry found for protocol {}", protocol))?;
 
     if let Some(runtime_id) = &server.runtime_engine {
-        let runtime = addons.values().find_map(|addon| {
-            addon.runtimes.as_ref()?.iter().find(|runtime| runtime.id == *runtime_id).cloned()
-        }).ok_or_else(|| format!("runtime '{}' not found for protocol {}", runtime_id, protocol))?;
+        let runtime = manifest
+            .runtimes
+            .get(runtime_id)
+            .cloned()
+            .ok_or_else(|| format!("runtime '{}' not found for protocol {}", runtime_id, protocol))?;
 
         let runtime_program = runtime.command.clone()
             .ok_or_else(|| format!("runtime '{}' has no command", runtime_id))?;
 
-        return Ok((runtime_program, server.args.clone().unwrap_or_default(), None));
+        return Ok((runtime_program, server.args.clone(), None));
     }
 
     let program = server.command.clone()
         .ok_or_else(|| format!("server '{}' has no command", protocol))?;
 
-    Ok((program, server.args.clone().unwrap_or_default(), None))
+    Ok((program, server.args.clone(), None))
 }
 
-pub async fn spawn_server(protocol: String, config: Value, host_id: &str, servers: ServersMap, out_tx: mpsc::UnboundedSender<Message>, addons: Arc<HashMap<String, AddonDefinition>>) -> Result<(String, u16, u32), String> {
-    let (program, args_extra, cwd) = resolve_server_command(&protocol, &addons)?;
+pub async fn spawn_server(protocol: String, config: Value, host_id: &str, servers: ServersMap, out_tx: mpsc::UnboundedSender<Message>, manifest: Arc<Mutex<CompiledManifest>>) -> Result<(String, u16, u32), String> {
+    let manifest = manifest.lock().await;
+    let (program, args_extra, cwd) = resolve_server_command(&protocol, &manifest)?;
 
     let mut command = Command::new(program);
     command.args(args_extra);

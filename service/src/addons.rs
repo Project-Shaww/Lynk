@@ -1,28 +1,9 @@
-use crate::app::AppDataFile;
-use crate::app::AppState;
+use crate::app::{app_data_dir, AppState};
 
 use axum::{extract::State, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::collections::HashMap;
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct AddonDefinition {
-    #[serde(default, rename = "name")]
-    pub _name: String,
-    #[serde(default, rename = "description")]
-    pub _description: Option<String>,
-    #[serde(default, rename = "manifest")]
-    pub _manifest: String,
-    #[serde(default, rename = "version")]
-    pub _version: String,
-    #[serde(default, rename = "dependencies")]
-    pub _dependencies: Option<Vec<String>>,
-    #[serde(default)]
-    pub runtimes: Option<Vec<RuntimeDefinition>>,
-    #[serde(default)]
-    pub servers: Option<Vec<ServerDefinition>>,
-}
+use std::{collections::{HashMap, HashSet}, path::PathBuf};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RuntimeDefinition {
@@ -41,61 +22,104 @@ pub struct ServerDefinition {
     #[serde(default)]
     pub runtime_engine: Option<String>,
     #[serde(default)]
-    pub args: Option<Vec<String>>,
+    pub args: Vec<String>,
 }
 
-pub fn load_addons() -> HashMap<String, AddonDefinition> {
-    let mut addons = HashMap::new();
-    let file_name = "app-data.json";
-
-    if let Ok(content) = std::fs::read_to_string(file_name) {
-        if let Ok(app_data) = serde_json::from_str::<AppDataFile>(&content) {
-            for (id, addon) in app_data.addons {
-                addons.insert(id, addon);
-            }
-        }
-    }
-
-    if addons.is_empty() {
-        if let Ok(entries) = std::fs::read_dir("addons") {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
-                    continue;
-                }
-                if let Ok(content) = std::fs::read_to_string(&path) {
-                    if let Ok(app_data) = serde_json::from_str::<AppDataFile>(&content) {
-                        for (id, addon) in app_data.addons {
-                            addons.insert(id, addon);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    addons
+#[derive(Debug, Clone, Deserialize)]
+pub struct CompiledManifestFile {
+    #[serde(default, rename = "compiler_version")]
+    pub compiler_version: String,
+    #[serde(default)]
+    pub runtimes: Vec<RuntimeDefinition>,
+    #[serde(default)]
+    pub servers: Vec<ServerDefinition>,
 }
 
-pub async fn list_addons(State(state): State<AppState>) -> impl IntoResponse {
-    let map = state.addons.as_ref();
-    let mut out = serde_json::Map::new();
-    for (id, addon) in map.iter() {
-        out.insert(id.clone(), serde_json::to_value(addon).unwrap_or(json!({})));
+#[derive(Debug, Clone, Serialize)]
+pub struct CompiledManifest {
+    pub compiler_version: String,
+    pub runtimes: HashMap<String, RuntimeDefinition>,
+    pub servers: HashMap<String, ServerDefinition>,
+}
+
+impl CompiledManifest {
+    pub fn from_file(file: CompiledManifestFile) -> Self {
+        let runtimes = file
+            .runtimes
+            .into_iter()
+            .filter(|runtime| !runtime.id.is_empty())
+            .map(|runtime| (runtime.id.clone(), runtime))
+            .collect();
+
+        let servers = file
+            .servers
+            .into_iter()
+            .filter(|server| !server.protocol.is_empty())
+            .map(|server| (server.protocol.clone(), server))
+            .collect();
+
+        Self {
+            compiler_version: file.compiler_version,
+            runtimes,
+            servers,
+        }
     }
-    (axum::http::StatusCode::OK, Json(json!({ "addons": out })))
+}
+
+fn manifest_path() -> Option<PathBuf> {
+    app_data_dir().map(|dir| dir.join("manifest.compiled.json"))
+}
+
+pub fn load_manifest() -> Result<CompiledManifest, String> {
+    let manifest_path = manifest_path().ok_or_else(|| "Failed to find app data directory".to_string())?;
+    
+    if !manifest_path.exists() {
+        let dummy_manifest = CompiledManifest {
+            compiler_version: "<not found>".to_string(),
+            runtimes: HashMap::new(),
+            servers: HashMap::new(),
+        };
+        return Ok(dummy_manifest);
+    }
+
+    let content = std::fs::read_to_string(&manifest_path)
+        .map_err(|error| format!("failed to read compiled manifest: {}", error))?;
+
+    let manifest_file = serde_json::from_str::<CompiledManifestFile>(&content)
+        .map_err(|error| format!("failed to parse compiled manifest: {}", error))?;
+
+    Ok(CompiledManifest::from_file(manifest_file))
+}
+
+pub async fn get_manifest(State(state): State<AppState>) -> impl IntoResponse {
+    let manifest = state.manifest.lock().await;
+    (axum::http::StatusCode::OK, Json(json!(manifest.clone())))
 }
 
 pub async fn list_protocols(State(state): State<AppState>) -> impl IntoResponse {
-    let mut protocols = Vec::new();
-    for (_id, addon) in state.addons.as_ref().iter() {
-        if let Some(ser_list) = &addon.servers {
-            for srv in ser_list.iter() {
-                if !srv.protocol.is_empty() && !protocols.contains(&srv.protocol) {
-                    protocols.push(srv.protocol.clone());
-                }
-            }
+    let manifest = state.manifest.lock().await;
+    let mut protocols = Vec::with_capacity(manifest.servers.len());
+    let mut seen = HashSet::new();
+
+    for protocol in manifest.servers.keys() {
+        if seen.insert(protocol.clone()) {
+            protocols.push(protocol.clone());
         }
     }
-    (axum::http::StatusCode::OK, Json(json!({ "protocols": protocols })))
+
+    (axum::http::StatusCode::OK, Json(json!(protocols)))
+}
+
+pub async fn reload_manifest(State(state): State<AppState>) -> impl IntoResponse {
+    match load_manifest() {
+        Ok(new_manifest) => {
+            let mut guard = state.manifest.lock().await;
+            *guard = new_manifest;
+            (axum::http::StatusCode::OK, Json(json!({ "reloaded": true })))
+        }
+        Err(error) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "reloaded": false, "error": error })),
+        ),
+    }
 }

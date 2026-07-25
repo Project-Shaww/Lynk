@@ -1,11 +1,11 @@
-use crate::addons::AddonDefinition;
+use crate::addons::CompiledManifest;
 use crate::servers::{spawn_server, ServersMap, ChildSend};
 use crate::app::AppState;
 
 use axum::{extract::{ws::{Message, WebSocket, WebSocketUpgrade}, State}, response::IntoResponse};
 use futures::{sink::SinkExt, stream::StreamExt};
 use serde_json::Value;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 use tracing::{info, error};
@@ -44,7 +44,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
         match msg {
             Message::Text(t) => {
                 if let Ok(v) = serde_json::from_str::<Value>(&t) {
-                    handle_host_message(v, &id, servers.clone(), out_tx.clone(), state.addons.clone()).await;
+                    handle_host_message(v, &id, servers.clone(), out_tx.clone(), state.manifest.clone()).await;
                 }
             }
             Message::Binary(b) => {
@@ -74,7 +74,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     info!("host {} disconnected", id);
 }
 
-async fn handle_host_message(v: Value, host_id: &str, servers: ServersMap, out_tx: mpsc::UnboundedSender<Message>, addons: Arc<HashMap<String, AddonDefinition>>) {
+async fn handle_host_message(v: Value, host_id: &str, servers: ServersMap, out_tx: mpsc::UnboundedSender<Message>, manifest: Arc<tokio::sync::Mutex<CompiledManifest>>) {
     let obj = match v.as_object() {
         Some(o) => o,
         None => return,
@@ -103,7 +103,7 @@ async fn handle_host_message(v: Value, host_id: &str, servers: ServersMap, out_t
                 return;
             }
 
-            match spawn_server(protocol.to_string(), config, &host_id, servers.clone(), out_tx.clone(), addons.clone()).await {
+            match spawn_server(protocol.to_string(), config, &host_id, servers.clone(), out_tx.clone(), manifest.clone()).await {
                 Ok((sid, port, _child_pid)) => {
                     let resp = serde_json::json!({"type":"server_created","pid": pid, "sid": sid, "port": port, "protocol": protocol, "config": obj.get("config").cloned().unwrap_or(Value::Null)});
                     let _ = out_tx.send(Message::Text(resp.to_string().into()));
