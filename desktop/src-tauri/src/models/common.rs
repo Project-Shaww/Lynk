@@ -11,7 +11,7 @@ pub struct RuntimeDefinition {
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct ServerDefinition {
     #[serde(default)]
-    pub protocol: String,
+    pub id: String,
     #[serde(default)]
     pub path: Option<String>,
     #[serde(default)]

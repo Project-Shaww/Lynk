@@ -16,12 +16,12 @@ pub fn validate_remote_manifest(manifest: &RemoteAddonManifest) -> Result<(), St
 		}
 	}
 
-	let mut server_protocols = HashSet::new();
+	let mut server_ids = HashSet::new();
 	if let Some(servers) = &manifest.servers {
 		for server in servers {
 			validate_server(server)?;
-			if !server_protocols.insert(server.protocol.as_str()) {
-				return Err(format!("Duplicate server protocol '{}' in manifest", server.protocol));
+			if !server_ids.insert(server.id.as_str()) {
+				return Err(format!("Duplicate server id '{}' in manifest", server.id));
 			}
 		}
 	}

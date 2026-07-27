@@ -36,23 +36,23 @@ pub fn validate_runtime(runtime: &RuntimeDefinition) -> Result<(), String> {
 }
 
 pub fn validate_server(server: &ServerDefinition) -> Result<(), String> {
-	validate_slug(&server.protocol, "server.protocol")?;
+	validate_slug(&server.id, "server.id")?;
 
 	if let Some(runtime_engine) = &server.runtime_engine {
-		validate_slug(runtime_engine, &format!("server '{}' runtime_engine", server.protocol))?;
+		validate_slug(runtime_engine, &format!("server '{}' runtime_engine", server.id))?;
 	}
 
 	if let Some(path) = &server.path {
-		validate_relative_path(path, &format!("server '{}' path", server.protocol))?;
+		validate_relative_path(path, &format!("server '{}' path", server.id))?;
 	} else if server.runtime_engine.is_none() {
-		return Err(format!("server '{}' needs either a runtime_engine or a path", server.protocol));
+		return Err(format!("server '{}' needs either a runtime_engine or a path", server.id));
 	}
 
     if let Some(args) = &server.args {
         for arg in args.split(' ') {
             if arg.starts_with("%ADDON_PATH%") {
 				let addon_path = arg["%ADDON_PATH%".len()..].trim_start_matches(['/', '\\']);
-				validate_relative_path(addon_path, &format!("server '{}' argument's addon path '{}'", server.protocol, arg))?;
+				validate_relative_path(addon_path, &format!("server '{}' argument's addon path '{}'", server.id, arg))?;
             }
         }
     }

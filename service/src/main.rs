@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route("/socket", any(ws_handler))
         .route("/api/servers", get(list_servers))
         .route("/api/manifest", get(get_manifest))
-        .route("/api/protocols", get(list_protocols))
+        .route("/api/ids", get(list_protocols))
         .route("/api/manifest/reload", post(reload_manifest))
         .with_state(app_state)
         .layer(cors);

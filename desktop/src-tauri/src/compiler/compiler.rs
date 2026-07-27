@@ -39,10 +39,10 @@ pub async fn get_addons() -> Result<Vec<MinimalAddonDefinition>, String> {
             }
 
             if let Some(override_servers) = override_def.servers.as_ref() {
-                for (server_protocol, server_override_def) in override_servers.iter() {
-                    if let Some(server) = addon.servers.iter_mut().find(|s| &s.protocol == server_protocol) {
-                        if let Some(new_protocol) = server_override_def.protocol.clone() {
-                            server.protocol = new_protocol;
+                for (server_id, server_override_def) in override_servers.iter() {
+                    if let Some(server) = addon.servers.iter_mut().find(|s| &s.id == server_id) {
+                        if let Some(new_id) = server_override_def.id.clone() {
+                            server.id = new_id;
                         }
                         if let Some(new_runtime_engine) = server_override_def.runtime_engine.clone() {
                             server.runtime_engine = Some(new_runtime_engine);
@@ -86,7 +86,7 @@ pub async fn get_enabled_addons(addons: &Vec<MinimalAddonDefinition>) -> Result<
                 let explicitly_enabled = enabled
                     .servers
                     .as_ref()
-                    .map(|ids| ids.contains(&server.protocol))
+                    .map(|ids| ids.contains(&server.id))
                     .unwrap_or(false);
 
                 if enable_all || explicitly_enabled {
@@ -124,13 +124,13 @@ pub fn validate_enabled_addons(enabled: &EnabledAddons) -> Result<(), String> {
 
     for server in &enabled.servers {
         validate_server(server)
-            .map_err(|e| format!("Invalid server '{}': {}", server.protocol, e))?;
+            .map_err(|e| format!("Invalid server '{}': {}", server.id, e))?;
 
         if let Some(engine) = &server.runtime_engine {
             if !known_runtime_ids.contains(engine.as_str()) {
                 return Err(format!(
                     "Server '{}' references runtime_engine '{}' which is not present in the enabled runtimes",
-                    server.protocol, engine
+                    server.id, engine
                 ));
             }
         }
@@ -159,7 +159,7 @@ fn compile_server(server: &ServerDefinition, enabled_addons: &EnabledAddons, add
     let get_server_addon_id = |server: &ServerDefinition, addons: &Vec<MinimalAddonDefinition>| -> Option<String> {
         for addon in addons {
             for addon_server in &addon.servers {
-                if addon_server.protocol == server.protocol {
+                if addon_server.id == server.id {
                     return Some(addon.addon_id.clone());
                 }
             }
@@ -206,7 +206,7 @@ fn compile_server(server: &ServerDefinition, enabled_addons: &EnabledAddons, add
         }
         return Err(format!(
             "Server '{}' references runtime_engine '{}' which was not found",
-            server.protocol, runtime_engine
+            server.id, runtime_engine
         ));
     }
 
@@ -214,7 +214,7 @@ fn compile_server(server: &ServerDefinition, enabled_addons: &EnabledAddons, add
         return Ok(with_args(path.clone()));
     }
 
-    Err(format!("Server '{}' needs either a runtime_engine or a path", server.protocol))
+    Err(format!("Server '{}' needs either a runtime_engine or a path", server.id))
 }
 
 pub async fn compile_manifest() -> Result<CompiledManifest, String> {
@@ -228,9 +228,9 @@ pub async fn compile_manifest() -> Result<CompiledManifest, String> {
         .servers
         .into_iter()
         .map(|server| {
-            let protocol = server.protocol.clone();
+            let id = server.id.clone();
             compile_server(&server, &enabled_addons_copy, &addons)
-                .map(|cmd| (protocol, cmd))
+                .map(|cmd| (id, cmd))
         })
         .collect::<Result<HashMap<_, _>, String>>()?;
 

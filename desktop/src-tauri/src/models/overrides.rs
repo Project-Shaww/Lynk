@@ -20,7 +20,7 @@ pub struct RuntimeOverrideDefinition {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ServerOverrideDefinition {
 	#[serde(default)]
-	pub protocol: Option<String>,
+	pub id: Option<String>,
     #[serde(default)]
     pub runtime_engine: Option<String>,
     #[serde(default)]
