@@ -1,10 +1,12 @@
 pub mod config;
 mod addons;
 mod commands;
+mod compiler;
 mod fs;
 mod models;
+mod validators;
 
-use commands::{install_addon, update_addon, uninstall_addon, get_installed_addons, get_addon_override, save_addon_override};
+use commands::{install_addon, update_addon, uninstall_addon, get_installed_addons, get_addon_override, save_addon_override, compile_manifest, validate_addons};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -16,7 +18,9 @@ pub fn run() {
             uninstall_addon,
             get_installed_addons,
             get_addon_override,
-            save_addon_override
+            save_addon_override,
+            compile_manifest,
+            validate_addons
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -13,5 +13,5 @@ pub struct AppState {
 }
 
 pub fn app_data_dir() -> Option<PathBuf> {
-    BaseDirs::new().map(|dirs| dirs.data_dir().join("lynk"))
+    BaseDirs::new().map(|dirs| dirs.data_dir().join("Lynk"))
 }

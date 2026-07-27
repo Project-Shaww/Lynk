@@ -1,5 +1,5 @@
 pub mod common;
-//pub mod compiled;
+pub mod compiler;
 pub mod config;
 pub mod installed_manifest;
 pub mod overrides;

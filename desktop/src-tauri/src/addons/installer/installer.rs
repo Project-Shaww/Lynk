@@ -3,7 +3,7 @@ use reqwest::Client;
 use std::path::Path;
 
 use crate::fs::{download::download_to_file, extract::extract_if_needed, paths::{addons_dir, temp_dir}, verify::verify_sha256};
-use crate::models::{config::InstalledAddonDefinition, InstalledAddonManifest, OriginDefinition, OriginUrlDefinition, RemoteAddonManifest};
+use crate::models::{config, InstalledAddonManifest, OriginDefinition, OriginUrlDefinition, RemoteAddonManifest};
 use crate::config::handler::ConfigHandler;
 
 use super::validate::validate_remote_manifest;
@@ -28,10 +28,11 @@ pub async fn install_addon_from_url(manifest_url: String) -> Result<InstalledAdd
 		cleanup_dir(&staging_dir).await;
 	} else {
         let mut config_handler = ConfigHandler::load().await?;
-        config_handler.add_installed(format!("{}-{}", manifest.id, uid), InstalledAddonDefinition {
+        config_handler.add_installed(format!("{}-{}", manifest.id, uid), config::InstalledAddonDefinition {
             id: manifest.id.clone(),
             path: format!("{}-{}/", manifest.id, uid),
         });
+		config_handler.set_enabled(format!("{}-{}", manifest.id, uid), config::EnabledAddonDefinition::default());
         config_handler.save().await?;
     }
 

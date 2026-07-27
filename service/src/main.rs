@@ -2,6 +2,7 @@ mod app;
 mod addons;
 mod servers;
 mod socket;
+mod integrated;
 
 use crate::addons::{load_manifest, get_manifest, list_protocols, reload_manifest};
 use crate::servers::list_servers;
@@ -19,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing_subscriber::fmt::init();
 
     let manifest = load_manifest()?;
-    info!("loaded compiled manifest: {} runtimes, {} servers", manifest.runtimes.len(), manifest.servers.len());
+    info!("loaded compiled manifest: {} servers", manifest.servers.len());
 
     let app_state = AppState { manifest: Arc::new(Mutex::new(manifest)), servers: Arc::new(Mutex::new(HashMap::new())) };
 

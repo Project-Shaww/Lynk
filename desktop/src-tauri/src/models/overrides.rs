@@ -24,7 +24,7 @@ pub struct ServerOverrideDefinition {
     #[serde(default)]
     pub runtime_engine: Option<String>,
     #[serde(default)]
-    pub args: Option<Vec<String>>,
+    pub args: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

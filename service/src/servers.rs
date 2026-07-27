@@ -27,32 +27,27 @@ pub struct ServerInstance {
 }
 
 fn resolve_server_command(protocol: &str, manifest: &CompiledManifest) -> Result<(String, Vec<String>, Option<String>), String> {
-    let server = manifest
+    let raw_command = manifest
         .servers
         .get(protocol)
         .cloned()
         .ok_or_else(|| format!("no server entry found for protocol {}", protocol))?;
 
-    if let Some(runtime_id) = &server.runtime_engine {
-        let runtime = manifest
-            .runtimes
-            .get(runtime_id)
-            .cloned()
-            .ok_or_else(|| format!("runtime '{}' not found for protocol {}", runtime_id, protocol))?;
-
-        let runtime_program = runtime.command.clone()
-            .ok_or_else(|| format!("runtime '{}' has no command", runtime_id))?;
-
-        return Ok((runtime_program, server.args.clone(), None));
+    let parts: Vec<String> = raw_command.split(' ').map(|s| s.to_string()).collect();
+    let program = parts[0].clone();
+    if parts.len() > 1 {
+        let args = parts[1..].to_vec();
+        return Ok((program, args, None));
     }
 
-    let program = server.command.clone()
-        .ok_or_else(|| format!("server '{}' has no command", protocol))?;
-
-    Ok((program, server.args.clone(), None))
+    Ok((program, Vec::new(), None))
 }
 
 pub async fn spawn_server(protocol: String, config: Value, host_id: &str, servers: ServersMap, out_tx: mpsc::UnboundedSender<Message>, manifest: Arc<Mutex<CompiledManifest>>) -> Result<(String, u16, u32), String> {
+    if matches!(protocol.as_str(), "http" | "ws" | "tcp" | "udp") {
+        return crate::integrated::spawn_integrated_server(protocol, config, host_id, servers, out_tx).await;
+    }
+
     let manifest = manifest.lock().await;
     let (program, args_extra, cwd) = resolve_server_command(&protocol, &manifest)?;
 
