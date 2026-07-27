@@ -38,7 +38,6 @@ pub async fn spawn_udp_server(
     let out_tx_clone = out_tx.clone();
     let sid_clone = sid.clone();
 
-    // Recv task
     let recv_task = tokio::spawn(async move {
         let mut buf = [0u8; 65535];
         loop {
@@ -54,10 +53,10 @@ pub async fn spawn_udp_server(
                                     seen_guard.insert(addr, new_cid.clone());
                                     client_addrs_clone.lock().await.insert(new_cid.clone(), addr);
 
-                                    // Send connect event
                                     let connect_payload = serde_json::json!({
                                         "type": "connect",
-                                        "cid": new_cid
+                                        "cid": new_cid,
+                                        "addr": &addr.to_string()
                                     });
                                     let forward_connect = serde_json::json!({
                                         "type": "server_message",
@@ -73,6 +72,7 @@ pub async fn spawn_udp_server(
                             let msg_payload = serde_json::json!({
                                 "type": "message",
                                 "cid": cid,
+                                "addr": &addr.to_string(),
                                 "payload": text
                             });
                             let forward = serde_json::json!({
@@ -99,7 +99,6 @@ pub async fn spawn_udp_server(
     let client_addrs_send = client_addrs.clone();
     let seen_addrs_send = seen_addrs.clone();
 
-    // Command listener task
     tokio::spawn(async move {
         let mut cancel_tx = Some(cancel_tx);
         while let Some(msg) = writer_rx.recv().await {
@@ -149,6 +148,20 @@ pub async fn spawn_udp_server(
                                                 tracing::error!("UDP send_to broadcast error for {}: {}", addr, e);
                                             }
                                         }
+                                    } else if pt == "unfollow" {
+                                        if let Some(cid) = payload.get("cid").and_then(|x| x.as_str()) {
+                                            let mut guard = seen_addrs_send.lock().await;
+                                            if let Some((addr, _)) = guard.clone().iter().find(|(_, v)| *v == cid) {
+                                                let _ = guard.remove(addr);
+                                            }
+                                            let mut guard = client_addrs_send.lock().await;
+                                            let _ = guard.remove(cid);
+                                        } else {
+                                            let mut guard = seen_addrs_send.lock().await;
+                                            let _ = guard.clear();
+                                            let mut guard = client_addrs_send.lock().await;
+                                            let _ = guard.clear();
+                                        }
                                     }
                                 }
                             }
@@ -165,7 +178,6 @@ pub async fn spawn_udp_server(
         }
         let _ = recv_task.await;
 
-        // Cleanup
         let mut map = servers.lock().await;
         if map.remove(&sid).is_some() {
             let resp = serde_json::json!({
