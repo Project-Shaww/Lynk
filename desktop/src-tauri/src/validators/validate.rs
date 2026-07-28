@@ -1,6 +1,7 @@
 use std::path::{Component, Path};
 
 use crate::models::{ServerDefinition, RuntimeDefinition};
+use crate::models::identifier::Identifier;
 
 pub fn validate_slug(value: &str, field: &str) -> Result<(), String> {
 	if value.is_empty() {
@@ -12,6 +13,18 @@ pub fn validate_slug(value: &str, field: &str) -> Result<(), String> {
 	} else {
 		Err(format!("{} must contain only lowercase letters, numbers, and hyphens", field))
 	}
+}
+
+pub fn validate_identifier(identifier: &Identifier, field: &str) -> Result<(), String> {
+	validate_slug(&identifier.id, field)?;
+    if let Some(variant) = &identifier.variant {
+        validate_slug(&variant, &format!("{} variant", field))?;
+    }
+    if let Some(system) = &identifier.system {
+        validate_slug(&system.to_string(), &format!("{} system", field))?;
+    }
+
+	Ok(())
 }
 
 pub fn validate_relative_path(path: &str, field: &str) -> Result<(), String> {
@@ -29,17 +42,17 @@ pub fn validate_relative_path(path: &str, field: &str) -> Result<(), String> {
 }
 
 pub fn validate_runtime(runtime: &RuntimeDefinition) -> Result<(), String> {
-	validate_slug(&runtime.id, "runtime.id")?;
+	validate_identifier(&Identifier::from_string(&runtime.id), "runtime.id")?;
 
 	let path = runtime.path.as_deref().ok_or_else(|| format!("runtime '{}' must define a path", runtime.id))?;
 	validate_relative_path(path, &format!("runtime '{}' path", runtime.id))
 }
 
 pub fn validate_server(server: &ServerDefinition) -> Result<(), String> {
-	validate_slug(&server.id, "server.id")?;
+	validate_identifier(&Identifier::from_string(&server.id), "server.id")?;
 
 	if let Some(runtime_engine) = &server.runtime_engine {
-		validate_slug(runtime_engine, &format!("server '{}' runtime_engine", server.id))?;
+		validate_identifier(&Identifier::from_string(runtime_engine), &format!("server '{}' runtime_engine", server.id))?;
 	}
 
 	if let Some(path) = &server.path {

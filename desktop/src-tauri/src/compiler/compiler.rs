@@ -4,8 +4,9 @@ use std::path::PathBuf;
 use crate::fs::paths::{app_data_dir, addons_dir};
 use crate::config::ConfigHandler;
 use crate::models::common::{ServerDefinition, RuntimeDefinition};
-use crate::models::compiler::{CompiledManifest, EnabledAddons, MinimalAddonDefinition};
+use crate::models::compiler::{CompiledManifest, EnabledAddons, MinimalAddonDefinition, InfoDefinition, ServerInfo};
 use crate::models::InstalledAddonManifest;
+use crate::models::identifier::Identifier;
 use crate::validators::{validate_runtime, validate_server};
 
 pub async fn get_addons() -> Result<Vec<MinimalAddonDefinition>, String> {
@@ -66,9 +67,18 @@ pub async fn get_enabled_addons(addons: &Vec<MinimalAddonDefinition>) -> Result<
     let mut enabled_runtimes = Vec::new();
     let mut enabled_servers = Vec::new();
 
+    let mut runtimes_info: HashMap<String, InfoDefinition> = HashMap::new();
+    let mut servers_info: HashMap<String, InfoDefinition> = HashMap::new();
+
+    let is_compatible = |id: &str| {
+        Identifier::from_string(id).is_current_system_compatible()
+    };
+
     for addon in addons.iter() {
         if let Some(enabled) = config.enabled.get(&addon.addon_id) {
             let enable_all = enabled.runtimes.is_none() && enabled.servers.is_none();
+            let mut runtimes_level: HashMap<String, u8> = HashMap::new();
+            let mut servers_level: HashMap<String, u8> = HashMap::new();
 
             for runtime in addon.runtimes.iter() {
                 let explicitly_enabled = enabled
@@ -77,8 +87,33 @@ pub async fn get_enabled_addons(addons: &Vec<MinimalAddonDefinition>) -> Result<
                     .map(|ids| ids.contains(&runtime.id))
                     .unwrap_or(false);
 
-                if enable_all || explicitly_enabled {
-                    enabled_runtimes.push(runtime.clone());
+                if (enable_all || explicitly_enabled) && is_compatible(&runtime.id) {
+                    let mut current = runtime.clone();
+                    let runtime_id = runtime.id.clone();
+                    let id = Identifier::from_string(&runtime_id).get_minimal();
+                    let specification_level = Identifier::from_string(&runtime_id).specification_level();
+                    current.id = id.clone();
+                    if let Some(position) = enabled_runtimes.iter().position(|r: &RuntimeDefinition| r.id == current.id) {
+                        if specification_level > *runtimes_level.get(&id).unwrap() {
+                            runtimes_level.insert(id.clone(), specification_level);
+                            runtimes_info.insert(id.clone(), InfoDefinition {
+                                id: id.clone(),
+                                full_id: runtime_id.clone(),
+                                addon_id: addon.addon_id.clone().split("-").next().unwrap().to_string(),
+                                addon_uid: addon.addon_id.clone(),
+                            });
+                            enabled_runtimes[position] = current;
+                        }
+                    } else {
+                        runtimes_level.insert(id.clone(), specification_level);
+                        runtimes_info.insert(id.clone(), InfoDefinition {
+                            id: id.clone(),
+                            full_id: runtime_id.clone(),
+                            addon_id: addon.addon_id.clone().split("-").next().unwrap().to_string(),
+                            addon_uid: addon.addon_id.clone(),
+                        });
+                        enabled_runtimes.push(current);
+                    }
                 }
             }
 
@@ -89,8 +124,33 @@ pub async fn get_enabled_addons(addons: &Vec<MinimalAddonDefinition>) -> Result<
                     .map(|ids| ids.contains(&server.id))
                     .unwrap_or(false);
 
-                if enable_all || explicitly_enabled {
-                    enabled_servers.push(server.clone());
+                if (enable_all || explicitly_enabled) && is_compatible(&server.id) {
+                    let mut current = server.clone();
+                    let server_id = server.id.clone();
+                    let id = Identifier::from_string(&server_id).get_minimal();
+                    let specification_level = Identifier::from_string(&server_id).specification_level();
+                    current.id = id.clone();
+                    if let Some(position) = enabled_servers.iter().position(|r: &ServerDefinition| r.id == current.id) {
+                        if specification_level > *servers_level.get(&id).unwrap() {
+                            servers_level.insert(id.clone(), specification_level);
+                            servers_info.insert(id.clone(), InfoDefinition {
+                                id: id.clone(),
+                                full_id: server_id.clone(),
+                                addon_id: addon.addon_id.clone().split("-").next().unwrap().to_string(),
+                                addon_uid: addon.addon_id.clone(),
+                            });
+                            enabled_servers[position] = current;
+                        }
+                    } else {
+                        servers_level.insert(id.clone(), specification_level);
+                        servers_info.insert(id.clone(), InfoDefinition {
+                            id: id.clone(),
+                            full_id: server_id.clone(),
+                            addon_id: addon.addon_id.clone().split("-").next().unwrap().to_string(),
+                            addon_uid: addon.addon_id.clone(),
+                        });
+                        enabled_servers.push(current);
+                    }
                 }
             }
         }
@@ -99,6 +159,8 @@ pub async fn get_enabled_addons(addons: &Vec<MinimalAddonDefinition>) -> Result<
     Ok(EnabledAddons {
         runtimes: enabled_runtimes,
         servers: enabled_servers,
+        runtimes_info,
+        servers_info,
     })
 }
 
@@ -111,9 +173,19 @@ async fn load_installed_addon_manifest(installed_id: &str) -> Result<InstalledAd
 }
 
 pub fn validate_enabled_addons(enabled: &EnabledAddons) -> Result<(), String> {
+    let mut runtimes_ids: Vec<String> = Vec::new();
+    let mut servers_ids: Vec<String> = Vec::new();
+    let integrated_servers_ids: Vec<String> = vec!["http".to_string(),"ws".to_string(),"tcp".to_string(),"udp".to_string()];
+        
+
     for runtime in &enabled.runtimes {
         validate_runtime(runtime)
             .map_err(|e| format!("Invalid runtime '{}': {}", runtime.id, e))?;
+        if !runtimes_ids.contains(&runtime.id) {
+            runtimes_ids.push(runtime.id.clone());
+        } else {
+            return Err(format!("Duplicate runtime id '{}' in enabled addons", runtime.id));
+        }
     }
 
     let known_runtime_ids: std::collections::HashSet<&str> = enabled
@@ -125,7 +197,14 @@ pub fn validate_enabled_addons(enabled: &EnabledAddons) -> Result<(), String> {
     for server in &enabled.servers {
         validate_server(server)
             .map_err(|e| format!("Invalid server '{}': {}", server.id, e))?;
-
+        if integrated_servers_ids.contains(&server.id) {
+            return Err(format!("Server id '{}' is integrated and cannot be used", server.id));
+        }
+        if !servers_ids.contains(&server.id) {
+            servers_ids.push(server.id.clone());
+        } else {
+            return Err(format!("Duplicate server id '{}' in enabled addons", server.id));
+        }
         if let Some(engine) = &server.runtime_engine {
             if !known_runtime_ids.contains(engine.as_str()) {
                 return Err(format!(
@@ -153,8 +232,9 @@ fn compiled_manifest_path() -> Result<PathBuf, String> {
     Ok(app_data_dir.join("manifest.compiled.json"))
 }
 
-fn compile_server(server: &ServerDefinition, enabled_addons: &EnabledAddons, addons: &Vec<MinimalAddonDefinition>) -> Result<String, String> {
+fn compile_server(server: &ServerDefinition, enabled_addons: &EnabledAddons, addons: &Vec<MinimalAddonDefinition>, servers_info: &mut HashMap<String, ServerInfo>) -> Result<String, String> {
     let addons_dir = addons_dir().ok_or_else(|| "Unable to resolve addons directory".to_string())?;
+    let server_info = enabled_addons.servers_info.get(&server.id).ok_or_else(|| "Unable to find server info".to_string())?;
 
     let get_server_addon_id = |server: &ServerDefinition, addons: &Vec<MinimalAddonDefinition>| -> Option<String> {
         for addon in addons {
@@ -202,6 +282,8 @@ fn compile_server(server: &ServerDefinition, enabled_addons: &EnabledAddons, add
     if let Some(runtime_engine) = &server.runtime_engine {
         if let Some(runtime) = enabled_addons.runtimes.iter().find(|r| r.id == *runtime_engine) {
             let runtime_path = addons_dir.join(get_runtime_addon_id(runtime, addons).unwrap()).join(runtime.path.clone().unwrap_or_default());
+            let runtime_info = enabled_addons.runtimes_info.get(runtime_engine).ok_or_else(|| "Unable to find runtime info".to_string())?;
+            servers_info.insert(server_info.id.clone(), ServerInfo::from_info(&server_info, Some(runtime_info.clone())));
             return Ok(with_args(runtime_path.display().to_string()));
         }
         return Err(format!(
@@ -211,6 +293,7 @@ fn compile_server(server: &ServerDefinition, enabled_addons: &EnabledAddons, add
     }
 
     if let Some(path) = &server.path {
+        servers_info.insert(server_info.id.clone(), ServerInfo::from_info(&server_info, None));
         return Ok(with_args(path.clone()));
     }
 
@@ -223,13 +306,14 @@ pub async fn compile_manifest() -> Result<CompiledManifest, String> {
     validate_enabled_addons(&enabled_addons)?;
 
     let enabled_addons_copy = enabled_addons.clone();
+    let mut servers_info: HashMap<String, ServerInfo> = HashMap::new();
 
     let servers: HashMap<String, String> = enabled_addons
         .servers
         .into_iter()
         .map(|server| {
             let id = server.id.clone();
-            compile_server(&server, &enabled_addons_copy, &addons)
+            compile_server(&server, &enabled_addons_copy, &addons, &mut servers_info)
                 .map(|cmd| (id, cmd))
         })
         .collect::<Result<HashMap<_, _>, String>>()?;
@@ -237,6 +321,7 @@ pub async fn compile_manifest() -> Result<CompiledManifest, String> {
     let compiled_manifest = CompiledManifest {
         compiler_version: "0.1.0".to_string(),
         servers,
+        servers_info,
     };
 
     save_compiled_manifest(&compiled_manifest_path()?, &compiled_manifest).await?;

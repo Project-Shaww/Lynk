@@ -6,18 +6,47 @@ use serde_json::json;
 use std::{collections::{HashMap, HashSet}, path::PathBuf};
 use tracing::info;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RuntimeInfo {
+	#[serde(default)]
+	pub id: String,
+	#[serde(default)]
+	pub full_id: String,
+	#[serde(default)]
+	pub addon_id: String,
+	#[serde(default)]
+	pub addon_uid: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerInfo {
+	#[serde(default)]
+	pub id: String,
+	#[serde(default)]
+	pub addon_id: String,
+	#[serde(default)]
+	pub addon_uid: String,
+	#[serde(default)]
+	pub full_id: String,
+	#[serde(default)]
+	pub runtime: Option<RuntimeInfo>,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct CompiledManifestFile {
     #[serde(default, rename = "compiler_version")]
     pub compiler_version: String,
     #[serde(default)]
     pub servers: HashMap<String, String>,
+    #[serde(default)]
+    pub servers_info: HashMap<String, ServerInfo>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CompiledManifest {
     pub compiler_version: String,
     pub servers: HashMap<String, String>,
+	pub servers_info: HashMap<String, ServerInfo>,
 }
 
 impl CompiledManifest {
@@ -25,6 +54,7 @@ impl CompiledManifest {
         Self {
             compiler_version: file.compiler_version,
             servers: file.servers,
+			servers_info: file.servers_info,
         }
     }
 }
@@ -40,6 +70,7 @@ pub fn load_manifest() -> Result<CompiledManifest, String> {
         let dummy_manifest = CompiledManifest {
             compiler_version: "<not found>".to_string(),
             servers: HashMap::new(),
+			servers_info: HashMap::new(),
         };
         return Ok(dummy_manifest);
     }

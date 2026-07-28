@@ -1,6 +1,7 @@
 pub mod common;
 pub mod compiler;
 pub mod config;
+pub mod identifier;
 pub mod installed_manifest;
 pub mod overrides;
 pub mod remote_manifest;
