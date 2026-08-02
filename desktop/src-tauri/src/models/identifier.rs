@@ -7,6 +7,7 @@ pub enum System {
     X64,
     Arm,
     Arm64,
+    Aarch64,
     Windows,
     WindowsX86,
     WindowsX64,
@@ -18,6 +19,7 @@ pub enum System {
     Macos,
     Macosx64,
     MacosArm64,
+    MacosAarch64,
 }
 
 impl System {
@@ -27,6 +29,7 @@ impl System {
             "x64" => Self::X64,
             "arm" => Self::Arm,
             "arm64" => Self::Arm64,
+            "aarch64" => Self::Aarch64,
             "windows" => Self::Windows,
             "windows-x86" => Self::WindowsX86,
             "windows-x64" => Self::WindowsX64,
@@ -38,6 +41,7 @@ impl System {
             "macos" => Self::Macos,
             "macos-x64" => Self::Macosx64,
             "macos-arm64" => Self::MacosArm64,
+            "macos-aarch64" => Self::MacosAarch64,
             _ => Self::Any,
         }
     }
@@ -49,6 +53,7 @@ impl System {
             Self::X64 => "x64".to_string(),
             Self::Arm => "arm".to_string(),
             Self::Arm64 => "arm64".to_string(),
+            Self::Aarch64 => "aarch64".to_string(),
             Self::Windows => "windows".to_string(),
             Self::WindowsX86 => "windows-x86".to_string(),
             Self::WindowsX64 => "windows-x64".to_string(),
@@ -60,6 +65,7 @@ impl System {
             Self::Macos => "macos".to_string(),
             Self::Macosx64 => "macos-x64".to_string(),
             Self::MacosArm64 => "macos-arm64".to_string(),
+            Self::MacosAarch64 => "macos-aarch64".to_string(),
         }
     }
 
@@ -70,6 +76,7 @@ impl System {
             Self::X64 => arch == "x64",
             Self::Arm => arch == "arm",
             Self::Arm64 => arch == "arm64",
+            Self::Aarch64 => arch == "aarch64",
             Self::Windows => os == "windows",
             Self::WindowsX86 => os == "windows" && arch == "x86",
             Self::WindowsX64 => os == "windows" && arch == "x64",
@@ -81,6 +88,7 @@ impl System {
             Self::Macos => os == "macos",
             Self::Macosx64 => os == "macos" && arch == "x64",
             Self::MacosArm64 => os == "macos" && arch == "arm64",
+            Self::MacosAarch64 => os == "macos" && arch == "aarch64",
         }
     }
 
@@ -110,6 +118,7 @@ impl System {
             Self::X64 => 1,
             Self::Arm => 1,
             Self::Arm64 => 1,
+            Self::Aarch64 => 1,
             Self::Windows => 2,
             Self::WindowsX86 => 3,
             Self::WindowsX64 => 3,
@@ -121,6 +130,7 @@ impl System {
             Self::Macos => 2,
             Self::Macosx64 => 3,
             Self::MacosArm64 => 3,
+            Self::MacosAarch64 => 3,
         }
     }
 

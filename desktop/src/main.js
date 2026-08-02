@@ -65,6 +65,12 @@ document.addEventListener("DOMContentLoaded", () => {
     refreshDashboard("home");
     loadAddons();
     checkAddonUpdates(true);
+    (async () => {
+        try {
+            const status = await invoke("get_service_status");
+            if (!status.running) serviceStartButton.click();
+        } catch (error) {console.error(error)}
+    })();
 });
 
 function setupNavigation() {

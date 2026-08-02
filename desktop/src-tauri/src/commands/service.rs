@@ -4,7 +4,8 @@ use crate::models::identifier::System;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::process::Command;
+use tauri::AppHandle;
+use tauri_plugin_shell::ShellExt;
 use tokio::time::{sleep, Duration, timeout};
 
 const SERVICE_ADDR: &str = "http://127.0.0.1:51738";
@@ -24,17 +25,7 @@ pub struct RunningServer {
     pub metadata: serde_json::Value,
 }
 
-fn service_executable_path() -> Result<PathBuf, String> {
-    let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let current_dir = current_exe.parent().ok_or_else(|| "Unable to resolve desktop binary directory".to_string())?;
 
-    #[cfg(windows)]
-    let service_name = "lynk-service.exe";
-    #[cfg(not(windows))]
-    let service_name = "lynk-service";
-
-    Ok(current_dir.join(service_name))
-}
 
 fn bearer_token_path() -> Result<PathBuf, String> {
     app_data_dir()
@@ -98,21 +89,18 @@ pub async fn reload_compiled_manifest() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn start_service() -> Result<ServiceStatus, String> {
+pub async fn start_service(app: AppHandle) -> Result<ServiceStatus, String> {
     if let Ok(status) = fetch_service_status().await {
         if status.running {
             return Ok(status);
         }
     }
 
-    let service_path = service_executable_path()?;
-    if !service_path.exists() {
-        return Err(format!("Service executable not found at {}", service_path.display()));
-    }
-
-    Command::new(&service_path)
+    let (_, _child) = app.shell()
+        .sidecar("lynk_service")
+        .map_err(|e| format!("Failed to create sidecar: {}", e))?
         .spawn()
-        .map_err(|e| format!("Failed to start service: {}", e))?;
+        .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
 
     for _ in 0..20 {
         if let Ok(status) = fetch_service_status().await {
