@@ -1,8 +1,8 @@
 name: Release
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - releases
   workflow_dispatch:
 
 jobs:
@@ -10,11 +10,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, macos-intel-latest, ubuntu-22.04, windows-latest]
+        platform: [macos-latest, macos-13, ubuntu-22.04, windows-latest]
         include:
           - platform: macos-latest
             target: aarch64-apple-darwin
-          - platform: macos-intel-latest
+          - platform: macos-13
             target: x86_64-apple-darwin
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
@@ -34,7 +34,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -74,8 +74,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: desktop
-          tagName: ${{ github.ref_name }}
-          releaseName: "Lynk ${{ github.ref_name }}"
+          tagName: v__VERSION__
+          releaseName: "Lynk v__VERSION__"
           releaseBody: "See the assets to download this version and install."
           releaseDraft: true
           prerelease: false
