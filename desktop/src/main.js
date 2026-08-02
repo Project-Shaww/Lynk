@@ -34,7 +34,6 @@ const aboutServiceVersionValue = document.getElementById("about-service-version-
 
 const toastContainer = document.getElementById("toast-container");
 
-// Templates
 const addonCardTemplate = document.querySelector("template.addon-card-template");
 const addonServerOverrideTemplate = document.querySelector("template.addon-server-override-template");
 const addonRuntimeOverrideTemplate = document.querySelector("template.addon-runtime-override-template");
@@ -44,12 +43,10 @@ const addonPreviewDependencyConflictTemplate = document.querySelector("template.
 const addonPreviewTemplate = document.querySelector("template.addon-preview-template");
 const runningServerRowTemplate = document.querySelector("template.running-server-row-template");
 
-// Modals
 const installModal = document.getElementById("install-modal");
 const settingsModal = document.getElementById("settings-modal");
 const uninstallModal = document.getElementById("uninstall-modal");
 
-// State
 let currentlyInstalledAddons = [];
 let targetInstallUrl = "";
 let targetUninstallSlug = "";
@@ -186,9 +183,11 @@ async function refreshServiceStatus() {
         }
         if (serviceStartButton) {
             serviceStartButton.disabled = running;
+            serviceStartButton.classList.toggle('hidden', running);
         }
         if (serviceStopButton) {
             serviceStopButton.disabled = !running;
+            serviceStopButton.classList.toggle('hidden', !running);
         }
     } catch (error) {
         console.error("Error loading service status:", error);
@@ -209,9 +208,11 @@ async function refreshServiceStatus() {
         }
         if (serviceStartButton) {
             serviceStartButton.disabled = false;
+            serviceStartButton.classList.remove('hidden');
         }
         if (serviceStopButton) {
             serviceStopButton.disabled = true;
+            serviceStopButton.classList.add('hidden');
         }
     }
 }
@@ -346,7 +347,6 @@ async function reloadCompiledManifestFromUi() {
     }
 }
 
-// Toast Notifications
 function showToast(message, type = "success") {
     const toast = document.createElement("div");
     toast.className = `toast toast-${type}`;
@@ -369,7 +369,6 @@ function showToast(message, type = "success") {
     }, 4500);
 }
 
-// Button loading state
 function setButtonLoading(button, isLoading) {
     if (!button) return;
     const spinner = button.querySelector(".btn-spinner");
@@ -383,7 +382,6 @@ function setButtonLoading(button, isLoading) {
     }
 }
 
-// Modal handling utilities
 function openModal(modal) {
     if (!modal) return;
     modal.classList.remove("hidden");
@@ -455,7 +453,6 @@ function handleIncomingDeepLink(link) {
             showToast("Deep link received, but no valid URL parameter found", "warning");
         }
     } catch (e) {
-        // Fallback simple parsing if URL parser fails on custom schemes
         if (link.includes("install?url=")) {
             let manifestUrl = link.split("install?url=")[1];
             if (manifestUrl) {
@@ -470,7 +467,6 @@ function handleIncomingDeepLink(link) {
     }
 }
 
-// Load Installed Addons list
 async function loadAddons() {
     addonsList.innerHTML = `<div class="loading-state" id="loading-state"><div class="spinner"></div><p>Loading installed addons...</p></div>`;
     
@@ -508,7 +504,6 @@ async function loadAddons() {
     }
 }
 
-// Trigger installation preview
 installButton.addEventListener("click", () => {
     const url = urlInput.value.trim();
     if (!url) {
@@ -586,7 +581,6 @@ async function triggerInstallPreview(url) {
     }
 }
 
-// Confirm install from modal
 async function confirmInstall() {
     const confirmBtn = document.getElementById("install-modal-confirm");
     const body = document.getElementById("install-modal-body");
@@ -669,7 +663,6 @@ async function replaceInstall() {
     }
 }
 
-// Create addon card
 function createAddonCard(addon, enabledState) {
     const card = document.createElement("article");
     card.className = "card addon-card";
@@ -698,11 +691,9 @@ function createAddonCard(addon, enabledState) {
         }
     }
     
-    // Wire configure button
     const configBtn = card.querySelector(`#btn-toggle-settings-${addon.installed_id}`);
     configBtn.addEventListener("click", () => openSettingsModal(addon));
 
-    // Wire update button
     const updateBtn = card.querySelector(`#btn-update-${addon.installed_id}`);
     updateBtn.addEventListener("click", async () => {
         setButtonLoading(updateBtn, true);
@@ -720,19 +711,16 @@ function createAddonCard(addon, enabledState) {
         }
     });
     
-    // Wire uninstall button
     const uninstallBtn = card.querySelector(`#btn-uninstall-${addon.installed_id}`);
     uninstallBtn.addEventListener("click", () => triggerUninstallConfirm(addon));
 
     return card;
 }
 
-// Open settings modal
 async function openSettingsModal(addon) {
     targetSettingsAddon = addon;
     const body = document.getElementById("settings-modal-body");
     
-    // Load skeleton
     body.innerHTML = settingsModalTemplate.innerHTML
         .replaceAll("$ADDON_INSTALLED_ID$", addon.installed_id)
         .replaceAll("template-id=", "id=");
@@ -744,7 +732,6 @@ async function openSettingsModal(addon) {
     const presetSelect = body.querySelector(`#preset-select-${addon.installed_id}`);
     const presetDesc = body.querySelector(`#preset-desc-${addon.installed_id}`);
 
-    // Populate Runtimes
     runtimesContainer.innerHTML = "";
     if (addon.runtimes && addon.runtimes.length > 0) {
         addon.runtimes.forEach(rt => {
@@ -761,7 +748,6 @@ async function openSettingsModal(addon) {
         runtimesContainer.innerHTML = `<span class="text-muted" style="font-size: 13px;">No runtimes defined.</span>`;
     }
 
-    // Populate Servers
     serversContainer.innerHTML = "";
     if (addon.servers && addon.servers.length > 0) {
         addon.servers.forEach((srv, idx) => {
@@ -834,7 +820,6 @@ async function openSettingsModal(addon) {
         }
     }
 
-    // Populate Presets Select
     if (addon.presets && Object.keys(addon.presets).length > 0) {
         Object.entries(addon.presets).forEach(([presetKey, preset]) => {
             const opt = document.createElement("option");
@@ -870,7 +855,6 @@ async function openSettingsModal(addon) {
         presetSelect.disabled = true;
     }
 
-    // Load active overrides from backend
     try {
         const activeOverride = await invoke("get_addon_override", { addonSlug: addon.installed_id });
         if (activeOverride) {
@@ -912,7 +896,6 @@ async function openSettingsModal(addon) {
     openModal(settingsModal);
 }
 
-// Preset application utility
 function applyPresetOverrides(installedId, overrideSetting, body) {
     const skipDepsCheckbox = body.querySelector(`#skip-deps-${installedId}`);
     if (skipDepsCheckbox) {
@@ -951,7 +934,6 @@ function applyPresetOverrides(installedId, overrideSetting, body) {
     });
 }
 
-// Save settings from modal overrides form
 async function saveSettings() {
     const addon = targetSettingsAddon;
     if (!addon) return;
@@ -1056,7 +1038,6 @@ async function saveSettings() {
     }
 }
 
-// Background compiler manifest trigger
 async function compileManifest() {
     try {
         await invoke("compile_manifest");
@@ -1068,7 +1049,6 @@ async function compileManifest() {
     }
 }
 
-// Uninstall confirmation
 function triggerUninstallConfirm(addon) {
     targetUninstallSlug = addon.installed_id;
     document.getElementById("uninstall-addon-name").textContent = addon.name;
@@ -1093,8 +1073,6 @@ async function confirmUninstall() {
     }
 }
 
-// Check updates for all addons
-
 const checkAddonUpdates = async (isBackground = false) => {
     if (!isBackground) setButtonLoading(checkUpdatesButton, true);
     let updatesFoundCount = 0;
@@ -1113,7 +1091,6 @@ const checkAddonUpdates = async (isBackground = false) => {
             const updateBtn = card.querySelector(`#btn-update-${addon.installed_id}`);
             
             try {
-                // Call check addon update command
                 const remoteVersion = await invoke("check_addon_update", { addonSlug: addon.installed_id });
                 if (remoteVersion) {
                     updatesFoundCount++;
@@ -1146,4 +1123,5 @@ const checkAddonUpdates = async (isBackground = false) => {
         if (!isBackground) setButtonLoading(checkUpdatesButton, false);
     }
 };
+
 checkUpdatesButton.addEventListener("click", checkAddonUpdates);

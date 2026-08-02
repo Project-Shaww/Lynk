@@ -651,11 +651,6 @@ select {
     to { transform: rotate(360deg); }
 }
 
-#service-start-button:disabled,
-#service-stop-button:disabled {
-    display: none;
-}
-
 .addons-section {
     display: flex;
     flex-direction: column;
