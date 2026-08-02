@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::models::RemoteAddonManifest;
-use crate::validators::{validate_relative_path, validate_slug, validate_runtime, validate_server};
+use crate::validators::{validate_dependency_origins, validate_relative_path, validate_slug, validate_runtime, validate_server};
 
 pub fn validate_remote_manifest(manifest: &RemoteAddonManifest) -> Result<(), String> {
 	validate_slug(&manifest.id, "manifest.id")?;
@@ -34,6 +34,9 @@ pub fn validate_remote_manifest(manifest: &RemoteAddonManifest) -> Result<(), St
     if let Some(addons_dependencies) = &manifest.dependencies {
         for dependency in addons_dependencies {
             validate_slug(&dependency.id, "dependency id")?;
+			if let Some(origins) = &dependency.origins {
+				validate_dependency_origins(origins, &dependency.id)?;
+			}
             if !dependency_ids.insert(dependency.id.as_str()) {
                 return Err(format!("Duplicate dependency id '{}' in manifest", dependency.id));
             }

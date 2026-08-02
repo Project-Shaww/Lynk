@@ -5,6 +5,7 @@ pub mod identifier;
 pub mod installed_manifest;
 pub mod overrides;
 pub mod remote_manifest;
+pub mod version;
 
 pub use common::*;
 pub use installed_manifest::InstalledAddonManifest;

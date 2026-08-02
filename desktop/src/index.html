@@ -1,14 +1,443 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="stylesheet" href="styles.css" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lynk</title>
-    <script type="module" src="/main.js" defer></script>
-  </head>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Lynk Client</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+		<link rel="stylesheet" href="styles.css" />
+		<script type="module" src="/main.js" defer></script>
+	</head>
 
-  <body>
-    <h1>Lynk</h1>
-  </body>
+	<body>
+		<div class="app-shell">
+			<aside class="sidebar">
+				<div class="brand-block">
+					<img class="brand-mark" src="icon.png" alt="Lynk" />
+				</div>
+
+				<nav class="sidebar-nav" aria-label="Lynk sections">
+					<button class="nav-item active" data-page-target="home">Home</button>
+					<button class="nav-item" data-page-target="addons">Addons</button>
+					<button class="nav-item" data-page-target="servers">Servers</button>
+					<button class="nav-item" data-page-target="about">About</button>
+				</nav>
+
+				<div class="sidebar-footer">
+					<div class="sidebar-footer-label">Service</div>
+					<div class="sidebar-footer-value" id="sidebar-service-state">Checking...</div>
+				</div>
+			</aside>
+
+			<main class="workspace">
+				<section class="app-page active" id="page-home">
+					<div class="page-header">
+						<div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+							<h1 style="font-size: 38px;">Lynk Client</h1>
+						</div>
+					</div>
+
+					<section class="dashboard-grid home-grid">
+						<article class="card dashboard-card service-card" style="background-color: transparent; border-color: transparent; padding: 0;">
+							<div class="card-header-row" style="flex-direction:row;">
+								<h2>Service Status</h2>
+								<span class="status-pill" id="service-status-pill">Offline</span>
+							</div>
+							<div class="metric-grid">
+								<div class="metric-card">
+									<span class="metric-label">Version</span>
+									<span class="metric-value allow-select" id="service-version">-</span>
+								</div>
+								<div class="metric-card">
+									<span class="metric-label">Active servers</span>
+									<span class="metric-value allow-select" id="service-server-count">0</span>
+								</div>
+							</div>
+							<div class="card-actions">
+								<button id="service-start-button" class="btn btn-primary">
+									<span class="btn-text">Turn on</span>
+									<span class="btn-spinner hidden"></span>
+								</button>
+								<button id="service-stop-button" class="btn btn-secondary">
+									<span class="btn-text">Turn off</span>
+									<span class="btn-spinner hidden"></span>
+								</button>
+								<button id="service-refresh-button" class="btn btn-secondary">Refresh</button>
+							</div>
+						</article>
+
+						<article class="card dashboard-card quick-card">
+							<h2>Quick Summary</h2>
+							<p class="section-desc">Quick view of the installation and the system.</p>
+							<div class="stack-list">
+								<div class="stack-item">
+									<span>Service host</span>
+									<strong class="allow-select">127.0.0.1:51738</strong>
+								</div>
+								<div class="stack-item">
+									<span>Reload manifest</span>
+									<strong id="manifest-reload-state">Up to date</strong>
+								</div>
+								<div class="stack-item">
+									<span>Local servers</span>
+									<strong class="allow-select" id="local-server-count">0</strong>
+								</div>
+							</div>
+						</article>
+					</section>
+				</section>
+
+				<section class="app-page" id="page-addons">
+					<div class="page-header">
+						<div>
+							<h1>Addons</h1>
+						</div>
+
+						<div class="reload-banner hidden" id="manifest-reload-banner">
+							<div>
+								<strong>There are changes waiting to be applied.</strong>
+								<span id="manifest-reload-message">Compile the manifest and reload the service.</span>
+							</div>
+						</div>
+
+						<div class="page-header-actions">
+							<button id="reload-manifest-button" class="btn btn-secondary">
+								<span class="btn-text">Reload compiled manifest</span>
+								<span class="btn-spinner hidden"></span>
+							</button>
+							<button id="check-updates-button" class="btn btn-secondary">
+								<span class="btn-text">Check for Updates</span>
+								<span class="btn-spinner hidden"></span>
+							</button>
+						</div>
+					</div>
+
+					<section class="card install-card" id="install-section">
+						<h2>Install Addon</h2>
+						<p class="section-desc">Provide the URL to the addon manifest JSON file to download and register it.</p>
+						<div class="install-form">
+							<div class="input-group">
+								<input type="url" id="url-input" placeholder="https://example.com/addon/manifest.json" required>
+								<button id="install-button" class="btn btn-primary">
+									<span class="btn-text">Install Addon</span>
+									<span class="btn-spinner hidden"></span>
+								</button>
+							</div>
+						</div>
+					</section>
+
+					<section class="addons-section">
+						<div class="section-header">
+							<div class="addons-header-title">
+								<h2>Installed Addons</h2>
+								<span class="addons-count" id="addons-count">0 Addons</span>
+							</div>
+						</div>
+
+						<div class="addons-grid" id="addons-list">
+							<div class="loading-state" id="loading-state">
+								<div class="spinner"></div>
+								<p>Loading installed addons...</p>
+							</div>
+
+							<div class="empty-state hidden" id="empty-state">
+								<div class="empty-icon">📦</div>
+								<h3>No addons installed</h3>
+								<p>You haven't installed any addons yet. Use the installer above to add them.</p>
+							</div>
+						</div>
+					</section>
+				</section>
+
+				<section class="app-page" id="page-servers">
+					<div class="page-header">
+						<div>
+							<h1>Servers</h1>
+						</div>
+						<button id="servers-refresh-button" class="btn btn-secondary">Refresh</button>
+					</div>
+
+					<section class="card servers-card">
+						<div id="servers-list" class="servers-list"></div>
+					</section>
+				</section>
+
+				<section class="app-page" id="page-about">
+					<div class="page-header">
+						<div>
+							<h1>About</h1>
+						</div>
+						<button id="updates-placeholder-button" class="btn btn-secondary">Check for updates</button>
+					</div>
+
+					<section class="dashboard-grid about-grid">
+						<article class="card dashboard-card info-card">
+							<h2>System</h2>
+							<div class="info-stack">
+								<div class="info-line"><span>Current system</span><strong id="about-system-value">-</strong></div>
+								<div class="info-line"><span>Running servers</span><strong id="about-running-servers-value">0</strong></div>
+							</div>
+						</article>
+
+						<article class="card dashboard-card info-card">
+							<h2>App</h2>
+							<div class="info-stack">
+								<div class="info-line"><span>App version</span><strong id="about-app-version-value">-</strong></div>
+								<div class="info-line"><span>Compiler version</span><strong id="about-compiler-version-value">-</strong></div>
+								<div class="info-line"><span>Service version</span><strong id="about-service-version-value">-</strong></div>
+							</div>
+						</article>
+					</section>
+				</section>
+			</main>
+		</div>
+
+		<modal id="install-modal" class="modal-overlay hidden">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 id="install-modal-title">Addon Manifest Info</h3>
+					<button class="modal-close" id="install-modal-close">&times;</button>
+				</div>
+				<div class="modal-body" id="install-modal-body"></div>
+				<div class="modal-footer">
+					<button id="install-modal-cancel" class="btn btn-secondary">Cancel</button>
+					<button id="install-modal-replace" class="btn btn-danger">
+						<span class="btn-text">Replace</span>
+						<span class="btn-spinner hidden"></span>
+					</button>
+					<button id="install-modal-confirm" class="btn btn-primary">
+						<span class="btn-text">Continue</span>
+						<span class="btn-spinner hidden"></span>
+					</button>
+				</div>
+			</div>
+		</modal>
+
+		<modal id="settings-modal" class="modal-overlay hidden">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 id="settings-modal-title">Configure Addon</h3>
+					<button class="modal-close" id="settings-modal-close">&times;</button>
+				</div>
+				<div class="modal-body" id="settings-modal-body"></div>
+				<div class="modal-footer">
+					<button id="settings-modal-cancel" class="btn btn-secondary">Cancel</button>
+					<button id="settings-modal-save" class="btn btn-primary">Save Overrides</button>
+				</div>
+			</div>
+		</modal>
+
+		<modal id="uninstall-modal" class="modal-overlay hidden">
+			<div class="modal-content modal-danger">
+				<div class="modal-header">
+					<h3>Uninstall Addon</h3>
+					<button class="modal-close" id="uninstall-modal-close">&times;</button>
+				</div>
+				<div class="modal-body">
+					<p>Are you sure you want to uninstall <strong id="uninstall-addon-name"></strong>?</p>
+					<p class="modal-warning-text">This will delete all its files and custom configurations. This action cannot be undone.</p>
+				</div>
+				<div class="modal-footer">
+					<button id="uninstall-modal-cancel" class="btn btn-secondary">Cancel</button>
+					<button id="uninstall-modal-confirm" class="btn btn-danger">
+						<span class="btn-text">Uninstall</span>
+						<span class="btn-spinner hidden"></span>
+					</button>
+				</div>
+			</div>
+		</modal>
+
+		<toast class="toast-container" id="toast-container"></toast>
+	</body>
+
+	<assets>
+		<template class="addon-card-template">
+			<div class="addon-header">
+				<div class="addon-info-block">
+					<div class="addon-title-row">
+						<h3 class="addon-name">$ADDON_NAME$</h3>
+						<span class="badge badge-version">$ADDON_VERSION$</span>
+						<span class="badge badge-enabled hidden" template-id="badge-enabled-$ADDON_INSTALLED_ID$">Enabled</span>
+						<span class="addon-slug">$ADDON_SLUG$</span>
+						<span class="badge badge-update hidden" template-id="badge-update-$ADDON_INSTALLED_ID$">Update Available</span>
+					</div>
+				</div>
+				<p class="addon-description">$ADDON_DESCRIPTION$</p>
+			</div>
+			<div class="addon-actions">
+					<button class="btn btn-secondary btn-xs" template-id="btn-toggle-settings-$ADDON_INSTALLED_ID$">Configure</button>
+					<button class="btn btn-secondary btn-xs btn-update hidden" template-id="btn-update-$ADDON_INSTALLED_ID$">
+							<span class="btn-text">Update</span>
+							<span class="btn-spinner hidden"></span>
+					</button>
+					<button class="btn btn-danger btn-xs" template-id="btn-uninstall-$ADDON_INSTALLED_ID$">
+							<span class="btn-text">Uninstall</span>
+							<span class="btn-spinner hidden"></span>
+					</button>
+			</div>
+		</template>
+
+		<template class="addon-server-override-template">
+			<div class="row-enabled-toggle row-enabled-toggle-server">
+				<span template-id="srv-name-$ADDON_INSTALLED_ID$-$IDX$">$ID$</span>
+				<label class="switch">
+					<input type="checkbox" template-id="srv-enabled-$ADDON_INSTALLED_ID$-$IDX$" class="server-enabled-checkbox" data-server-id="$ID$" data-field="enabled">
+					<span class="slider"></span>
+				</label>
+			</div>
+			<div class="flex-column">
+				<span class="override-label">Protocol</span>
+				<input type="text" template-id="srv-proto-$ADDON_INSTALLED_ID$-$IDX$" data-server-idx="$IDX$" data-field="protocol" placeholder="$ID$" value="">
+			</div>
+			<div class="flex-column">
+				<span class="override-label">Runtime Engine</span>
+				<input type="text" template-id="srv-engine-$ADDON_INSTALLED_ID$-$IDX$" data-server-idx="$IDX$" data-field="runtime_engine" placeholder="$RUNTIME_ENGINE$" value="">
+			</div>
+			<div class="flex-column">
+					<span class="override-label">Args (comma separated)</span>
+					<input type="text" template-id="srv-args-$ADDON_INSTALLED_ID$-$IDX$" data-server-idx="$IDX$" data-field="args" placeholder="$ARGS$" value="">
+			</div>
+		</template>
+
+		<template class="addon-runtime-override-template">
+			<div class="row-enabled-toggle row-enabled-toggle-runtime">
+				<span template-id="rt-name-$ADDON_INSTALLED_ID$-$IDX$">$ID$</span>
+				<label class="switch">
+					<input type="checkbox" template-id="rt-enabled-$ADDON_INSTALLED_ID$-$IDX$" class="runtime-enabled-checkbox" data-runtime-id="$ID$">
+					<span class="slider"></span>
+				</label>
+			</div>
+			<div class="flex-column">
+				<span class="override-label">Protocol</span>
+				<input type="text" class="runtime-override-input" template-id="rt-override-$ADDON_INSTALLED_ID$-$IDX$" data-runtime-id="$ID$" placeholder="$ID$">
+			</div>
+		</template>
+
+		<template class="settings-modal-template">
+			<div class="override-grid">
+				<div class="override-section">
+					<div class="switch-container">
+						<div class="switch-label">
+							<span class="switch-title">Enabled</span>
+							<span class="override-label-sub">Turn the whole addon on or off</span>
+						</div>
+						<label class="switch">
+							<input type="checkbox" template-id="enabled-switch-$ADDON_INSTALLED_ID$">
+							<span class="slider"></span>
+						</label>
+					</div>
+				</div>
+
+				<div class="preset-section">
+					<div class="form-section-title">Preset Override</div>
+					<div class="preset-selector-container">
+						<select class="preset-select" template-id="preset-select-$ADDON_INSTALLED_ID$">
+							<option value="">-- Select Preset --</option>
+						</select>
+						<p class="preset-desc hidden" template-id="preset-desc-$ADDON_INSTALLED_ID$"></p>
+					</div>
+				</div>
+
+				<div class="override-section">
+					<div class="form-section-title">Runtime Overrides</div>
+					<div template-id="runtimes-container-$ADDON_INSTALLED_ID$"></div>
+				</div>
+
+				<div class="override-section">
+					<div class="form-section-title">Server Overrides</div>
+					<div template-id="servers-container-$ADDON_INSTALLED_ID$" style="display:grid;"></div>
+				</div>
+
+				<div class="override-section">
+					<div class="switch-container">
+						<div class="switch-label">
+							<span class="switch-title">Skip Dependencies</span>
+							<span class="override-label-sub">Skip installing required dependencies</span>
+						</div>
+						<label class="switch">
+							<input type="checkbox" template-id="skip-deps-$ADDON_INSTALLED_ID$">
+							<span class="slider"></span>
+						</label>
+					</div>
+				</div>
+			</div>
+		</template>
+
+		<template class="addon-preview-dependency-row-template">
+			<label class="dependency-row $DEPENDENCY_OPTIONAL_CLASS$ $DEPENDENCY_SATISFIED_CLASS$">
+				<div class="dependency-row-leading">
+					<input type="checkbox" class="dependency-install-checkbox" data-dependency-id="$DEPENDENCY_ID$" data-dependency-origin="$DEPENDENCY_ORIGIN$" data-dependency-installed-version="$INSTALLED_VERSION$" $DISABLED$ $CHECKED$>
+					<div>
+						<strong>$DEPENDENCY_ID$</strong>
+						<div class="dependency-subtitle">$DEPENDENCY_VERSION$</div>
+						<div class="dependency-subtitle">$DEPENDENCY_ORIGIN$</div>
+					</div>
+				</div>
+				<div class="dependency-meta">$OPTIONAL_TEXT$</div>
+			</label>
+		</template>
+
+		<template class="addon-preview-dependency-conflict-template">
+			<div class="dependency-row conflict-row">
+				<div>
+					<strong>$CONFLICT_NAME$</strong>
+					<div class="dependency-subtitle">$CONFLICT_INSTALLED_ID$</div>
+				</div>
+				<div class="dependency-meta">Installed v$CONFLICT_VERSION$</div>
+			</div>
+		</template>
+
+		<template class="addon-preview-template">
+			<div class="info-section">
+				<div class="info-section-title">Name</div>
+				<div style="font-size: 16px; font-weight: 600; color: var(--text-primary);">$NAME$</div>
+			</div>
+			<div class="info-grid">
+				<div class="info-section">
+					<div class="info-section-title">Version</div>
+					<div class="info-box">$VERSION$</div>
+				</div>
+				<div class="info-section">
+					<div class="info-section-title">Addon ID</div>
+					<div class="info-box" style="font-family: monospace;">$ADDON_ID$</div>
+				</div>
+			</div>
+			<div class="info-section">
+				<div class="info-section-title">Description</div>
+				<div class="info-box" style="color: var(--text-secondary);">$DESCRIPTION$</div>
+			</div>
+			<div class="info-section">
+				<div class="info-section-title">Required Runtimes</div>
+				<div>$RUNTIMES$</div>
+			</div>
+			<div class="info-section">
+				<div class="info-section-title">Defined Protocols / Servers</div>
+				<div>$SERVERS$</div>
+			</div>
+			<div class="info-section">
+				<div class="info-section-title">Dependencies</div>
+				<div class="dependency-list">$DEPENDENCIES$</div>
+			</div>
+			<div class="info-section">
+				<div class="info-section-title">Same ID installed</div>
+				<div class="dependency-list">$CONFLICTS$</div>
+			</div>
+			$UNRESOLVED_REQUIRED_DEPS_WARNING$
+		</template>
+
+		<template class="running-server-row-template">
+			 <article class="server-row">
+				<div>
+					<div class="server-row-title">$ID$</div>
+					<div class="server-row-subtitle allow-select">$PROTOCOL$</div>
+				</div>
+				<div class="server-row-meta">
+					<span>Port <span class="allow-select">$PORT$</span></span>
+					<pre class="allow-select">$CONFIG$</pre>
+				</div>
+			 </article>
+		</template>
+	</assets>
 </html>

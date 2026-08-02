@@ -59,7 +59,7 @@ pub async fn update_addon(addon_slug: String) -> Result<InstalledAddonManifest, 
 	tokio::fs::create_dir_all(&temp_root).await.map_err(|e| e.to_string())?;
 	tokio::fs::create_dir_all(&addons_root).await.map_err(|e| e.to_string())?;
 
-	let uid = addon_slug.clone().split("-").last().unwrap().to_string();
+	let uid = addon_slug.clone().split("-").last().unwrap_or_default().to_string();
 	let staging_dir = temp_root.join(&uid);
 	tokio::fs::create_dir_all(&staging_dir).await.map_err(|e| e.to_string())?;
     tokio::fs::rename(&addons_root.join(&addon_slug), &addons_root.join(format!("{}-old-{}", uid, installed_addon_manifest.version))).await.map_err(|e| e.to_string())?;
@@ -69,7 +69,7 @@ pub async fn update_addon(addon_slug: String) -> Result<InstalledAddonManifest, 
 	if result.is_err() {
 		cleanup_dir(&staging_dir).await;
         let _ = tokio::fs::rename(&addons_root.join(format!("{}-old-{}", uid, installed_addon_manifest.version)), &addons_root.join(&addon_slug)).await;
-        return Err(format!("Update failed: {}", result.err().unwrap()));
+        return Err(format!("Update failed: {}", result.err().unwrap_or_default()));
     } else {
         cleanup_dir(&addons_root.join(format!("{}-old-{}", uid, installed_addon_manifest.version))).await;
     }
@@ -126,7 +126,7 @@ async fn download_manifest_files(client: &Client, manifest: &RemoteAddonManifest
 	Ok(())
 }
 
-async fn fetch_remote_manifest(client: &Client, manifest_url: &str) -> Result<RemoteAddonManifest, String> {
+pub async fn fetch_remote_manifest(client: &Client, manifest_url: &str) -> Result<RemoteAddonManifest, String> {
 	let response = client.get(manifest_url).send().await.map_err(|e| e.to_string())?.error_for_status().map_err(|e| e.to_string())?;
 	let origin_url = response.url().to_string();
 	let manifest_text = response.text().await.map_err(|e| e.to_string())?;
@@ -135,7 +135,7 @@ async fn fetch_remote_manifest(client: &Client, manifest_url: &str) -> Result<Re
 	Ok(manifest)
 }
 
-async fn load_installed_addon_manifest(installed_id: &str) -> Result<InstalledAddonManifest, String> {
+pub async fn load_installed_addon_manifest(installed_id: &str) -> Result<InstalledAddonManifest, String> {
     let addons_root = addons_dir().ok_or_else(|| "Unable to resolve addons directory".to_string())?;
     let manifest_path = addons_root.join(installed_id).join("manifest.json");
     let manifest_bytes = tokio::fs::read(&manifest_path).await.map_err(|e| e.to_string())?;

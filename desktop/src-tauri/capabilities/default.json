@@ -7,6 +7,10 @@
   ],
   "permissions": [
     "core:default",
-    "opener:default"
+    "opener:default",
+    "deep-link:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-show",
+    "core:window:allow-set-focus"
   ]
 }

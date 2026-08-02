@@ -28,6 +28,8 @@ pub struct DependencieDefinition {
     pub version: Option<String>,
     #[serde(default)]
     pub optional: Option<bool>,
+    #[serde(default)]
+	pub origins: Option<Vec<OriginDefinition>>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

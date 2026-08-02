@@ -84,6 +84,25 @@ impl System {
         }
     }
 
+    pub fn get_arch() -> String {
+        match std::env::consts::ARCH {
+            "x86_64" => "x64".to_string(),
+            "arm64" => "arm64".to_string(),
+            "x86" => "x86".to_string(),
+            "arm" => "arm".to_string(),
+            _ => "".to_string(),
+        }
+    }
+
+    pub fn get_os() -> String {
+        match std::env::consts::OS {
+            "windows" => "windows".to_string(),
+            "linux" => "linux".to_string(),
+            "macos" => "macos".to_string(),
+            _ => "".to_string(),
+        }
+    }
+
     pub fn especification_level(&self) -> u8 {
         match self {
             Self::Any => 0,
@@ -105,16 +124,22 @@ impl System {
         }
     }
 
-    pub fn get_current() -> Self {
-        let target = std::env::consts::ARCH.to_string();
-        let os = std::env::consts::OS.to_string();
-        Self::from_string(&format!("{}-{}", os, target))
+    pub fn get_current() -> String {
+        let arch = Self::get_arch();
+        let os = Self::get_os();
+        if arch.is_empty() || os.is_empty() {
+            return "*.any".to_string();
+        }
+        format!("{}/{}", os, arch)
     }
 
     pub fn is_current_compatible(&self) -> bool {
-        let target = std::env::consts::ARCH.to_string();
-        let os = std::env::consts::OS.to_string();
-        self.is_compatible(&os, &target)
+        let arch = Self::get_arch();
+        let os = Self::get_os();
+        if arch.is_empty() || os.is_empty() {
+            return false;
+        }
+        self.is_compatible(&os, &arch)
     }
 }
 
@@ -130,51 +155,23 @@ impl Identifier {
         let parts: Vec<&str> = s.split(':').collect();
         match parts.len() {
             1 => {
-                let id = parts[0];
-                let varsys:Vec<&str> = s.split('/').collect();
-                match varsys.len() {
-                    1 => Self {
-                        id: id.to_string(),
-                        variant: Some(varsys[0].to_string()),
-                        system: None,
-                    },
-                    2 => Self {
-                        id: id.to_string(),
-                        variant: Some(varsys[0].to_string()),
-                        system: Some(System::from_string(varsys[1])),
-                    },
-                    _ => Self {
-                        id: s.to_string(),
-                        variant: None,
-                        system: None,
-                    },
+                let idsys:Vec<&str> = s.split('/').collect();
+                match idsys.len() {
+                    1 => Self { id: idsys[0].to_string(), variant: None, system: None },
+                    2 => Self { id: idsys[0].to_string(), variant: None, system: Some(System::from_string(idsys[1])) },
+                    _ => Self { id: s.to_string(), variant: None, system: None },
                 }
             },
             2 => {
-                let idsys:Vec<&str> = s.split('/').collect();
-                match idsys.len() {
-                    1 => Self {
-                        id: idsys[0].to_string(),
-                        variant: None,
-                        system: None,
-                    },
-                    2 => Self {
-                        id: idsys[0].to_string(),
-                        variant: None,
-                        system: Some(System::from_string(idsys[1])),
-                    },
-                    _ => Self {
-                        id: s.to_string(),
-                        variant: None,
-                        system: None,
-                    },
+                let id = parts[0];
+                let varsys:Vec<&str> = parts[1].split('/').collect();
+                match varsys.len() {
+                    1 => Self { id: id.to_string(), variant: Some(varsys[0].to_string()), system: None },
+                    2 => Self { id: id.to_string(), variant: Some(varsys[0].to_string()), system: Some(System::from_string(varsys[1])) },
+                    _ => Self { id: s.to_string(), variant: None, system: None },
                 }
             },
-            _ => Self {
-                id: s.to_string(),
-                variant: None,
-                system: None,
-            },
+            _ => Self { id: s.to_string(), variant: None, system: None },
         }
     }
 

@@ -1,7 +1,8 @@
 use std::path::{Component, Path};
 
-use crate::models::{ServerDefinition, RuntimeDefinition};
+use crate::models::{ServerDefinition, RuntimeDefinition, OriginDefinition};
 use crate::models::identifier::Identifier;
+use crate::fs::os_specific_type::os_specific_file_type;
 
 pub fn validate_slug(value: &str, field: &str) -> Result<(), String> {
 	if value.is_empty() {
@@ -15,8 +16,21 @@ pub fn validate_slug(value: &str, field: &str) -> Result<(), String> {
 	}
 }
 
+pub fn validate_extended_slug(value: &str, field: &str) -> Result<(), String> {
+	if value.is_empty() {
+		return Err(format!("{} cannot be empty", field));
+	}
+
+	if value.chars().all(|character| character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-' || character == ':') && value.chars().filter(|&character| character == ':').count() <= 1 && !value.ends_with(':') {
+		Ok(())
+	} else {
+		Err(format!("{} must contain only lowercase letters, numbers, hyphens, and colons, and at most one colon", field))
+	}
+}
+
+
 pub fn validate_identifier(identifier: &Identifier, field: &str) -> Result<(), String> {
-	validate_slug(&identifier.id, field)?;
+	validate_slug(&identifier.id, &format!("{} id", field))?;
     if let Some(variant) = &identifier.variant {
         validate_slug(&variant, &format!("{} variant", field))?;
     }
@@ -32,7 +46,8 @@ pub fn validate_relative_path(path: &str, field: &str) -> Result<(), String> {
 		return Err(format!("{} cannot be empty", field));
 	}
 
-	let candidate = Path::new(path);
+	let compiled_path = os_specific_file_type(&path);
+	let candidate = Path::new(&compiled_path);
 
 	if candidate.is_absolute() || candidate.components().any(|component| matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_) | Component::CurDir)) {
 		Err(format!("{} must stay inside the addon base folder", field))
@@ -52,7 +67,7 @@ pub fn validate_server(server: &ServerDefinition) -> Result<(), String> {
 	validate_identifier(&Identifier::from_string(&server.id), "server.id")?;
 
 	if let Some(runtime_engine) = &server.runtime_engine {
-		validate_identifier(&Identifier::from_string(runtime_engine), &format!("server '{}' runtime_engine", server.id))?;
+		validate_extended_slug(&runtime_engine, &format!("server '{}' runtime_engine", server.id))?;
 	}
 
 	if let Some(path) = &server.path {
@@ -69,6 +84,24 @@ pub fn validate_server(server: &ServerDefinition) -> Result<(), String> {
             }
         }
     }
+
+	Ok(())
+}
+
+pub fn validate_dependency_origins(origins: &[OriginDefinition], dependency_id: &str) -> Result<(), String> {
+	if origins.is_empty() {
+		return Err(format!("dependency '{}' must define at least one origin when origins is provided", dependency_id));
+	}
+
+	for origin in origins {
+		match origin {
+			OriginDefinition::Url(url) => {
+				if url.url.trim().is_empty() {
+					return Err(format!("dependency '{}' contains an empty origin url", dependency_id));
+				}
+			}
+		}
+	}
 
 	Ok(())
 }

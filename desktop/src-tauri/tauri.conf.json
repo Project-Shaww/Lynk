@@ -10,13 +10,27 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Lynk",
-        "width": 800,
-        "height": 600
+        "label": "main",
+        "title": "Lynk Client",
+        "width": 735,
+        "height": 600,
+        "minWidth": 735,
+        "maxWidth": 735,
+        "minHeight": 400,
+        "maximizable": false,
+        "minimizable": false,
+        "resizable": true
       }
     ],
     "security": {
       "csp": null
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["lynk"]
+      }
     }
   },
   "bundle": {

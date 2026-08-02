@@ -2,11 +2,13 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::fs::paths::{app_data_dir, addons_dir};
+use crate::fs::os_specific_type::os_specific_file_type;
 use crate::config::ConfigHandler;
 use crate::models::common::{ServerDefinition, RuntimeDefinition};
 use crate::models::compiler::{CompiledManifest, EnabledAddons, MinimalAddonDefinition, InfoDefinition, ServerInfo};
 use crate::models::InstalledAddonManifest;
 use crate::models::identifier::Identifier;
+use crate::models::version::is_version_at_least;
 use crate::validators::{validate_runtime, validate_server};
 
 pub async fn get_addons() -> Result<Vec<MinimalAddonDefinition>, String> {
@@ -99,7 +101,7 @@ pub async fn get_enabled_addons(addons: &Vec<MinimalAddonDefinition>) -> Result<
                             runtimes_info.insert(id.clone(), InfoDefinition {
                                 id: id.clone(),
                                 full_id: runtime_id.clone(),
-                                addon_id: addon.addon_id.clone().split("-").next().unwrap().to_string(),
+                                addon_id: addon.addon_id.clone().rsplit_once("-").map(|(id, _)| id.to_string()).unwrap_or(addon.addon_id.clone()),
                                 addon_uid: addon.addon_id.clone(),
                             });
                             enabled_runtimes[position] = current;
@@ -109,7 +111,7 @@ pub async fn get_enabled_addons(addons: &Vec<MinimalAddonDefinition>) -> Result<
                         runtimes_info.insert(id.clone(), InfoDefinition {
                             id: id.clone(),
                             full_id: runtime_id.clone(),
-                            addon_id: addon.addon_id.clone().split("-").next().unwrap().to_string(),
+                            addon_id: addon.addon_id.clone().rsplit_once("-").map(|(id, _)| id.to_string()).unwrap_or(addon.addon_id.clone()),
                             addon_uid: addon.addon_id.clone(),
                         });
                         enabled_runtimes.push(current);
@@ -136,7 +138,7 @@ pub async fn get_enabled_addons(addons: &Vec<MinimalAddonDefinition>) -> Result<
                             servers_info.insert(id.clone(), InfoDefinition {
                                 id: id.clone(),
                                 full_id: server_id.clone(),
-                                addon_id: addon.addon_id.clone().split("-").next().unwrap().to_string(),
+                                addon_id: addon.addon_id.clone().rsplit_once("-").map(|(id, _)| id.to_string()).unwrap_or(addon.addon_id.clone()),
                                 addon_uid: addon.addon_id.clone(),
                             });
                             enabled_servers[position] = current;
@@ -146,7 +148,7 @@ pub async fn get_enabled_addons(addons: &Vec<MinimalAddonDefinition>) -> Result<
                         servers_info.insert(id.clone(), InfoDefinition {
                             id: id.clone(),
                             full_id: server_id.clone(),
-                            addon_id: addon.addon_id.clone().split("-").next().unwrap().to_string(),
+                            addon_id: addon.addon_id.clone().rsplit_once("-").map(|(id, _)| id.to_string()).unwrap_or(addon.addon_id.clone()),
                             addon_uid: addon.addon_id.clone(),
                         });
                         enabled_servers.push(current);
@@ -218,6 +220,56 @@ pub fn validate_enabled_addons(enabled: &EnabledAddons) -> Result<(), String> {
     Ok(())
 }
 
+async fn validate_required_dependencies() -> Result<(), String> {
+    let config_handler = ConfigHandler::load().await?;
+    let config = config_handler.config();
+    let mut installed_manifests = Vec::new();
+
+    for (installed_id, installed_def) in config.installed.iter() {
+        let manifest = load_installed_addon_manifest(installed_id).await?;
+        installed_manifests.push((installed_def.id.clone(), manifest));
+    }
+
+    for (base_id, manifest) in installed_manifests.iter() {
+        if let Some(override_def) = config.overrides.get(&manifest.installed_id) {
+            if override_def.skip_dependencies.unwrap_or(false) {
+                continue;
+            }
+        }
+        if let Some(dependencies) = manifest.dependencies.as_ref() {
+            for dependency in dependencies {
+                if dependency.optional.unwrap_or(false) {
+                    continue;
+                }
+
+                let satisfied = installed_manifests.iter().any(|(candidate_base_id, candidate_manifest)| {
+                    candidate_base_id == &dependency.id
+                        && dependency
+                            .version
+                            .as_ref()
+                            .map(|required| is_version_at_least(&candidate_manifest.version, required))
+                            .unwrap_or(true)
+                });
+
+                if !satisfied {
+                    return Err(format!(
+                        "Addon '{}' requires dependency '{}'{}",
+                        base_id,
+                        dependency.id,
+                        dependency
+                            .version
+                            .as_ref()
+                            .map(|version| format!(" >= {}", version))
+                            .unwrap_or_default()
+                    ));
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
 async fn save_compiled_manifest(path: &PathBuf, compiled: &CompiledManifest) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent).await.map_err(|e| e.to_string())?;
@@ -236,11 +288,16 @@ fn compile_server(server: &ServerDefinition, enabled_addons: &EnabledAddons, add
     let addons_dir = addons_dir().ok_or_else(|| "Unable to resolve addons directory".to_string())?;
     let server_info = enabled_addons.servers_info.get(&server.id).ok_or_else(|| "Unable to find server info".to_string())?;
 
-    let get_server_addon_id = |server: &ServerDefinition, addons: &Vec<MinimalAddonDefinition>| -> Option<String> {
+    let get_server_addon_id = |server: &ServerDefinition, addons: &Vec<MinimalAddonDefinition>, servers_info: &HashMap<String, InfoDefinition>| -> Option<String> {
         for addon in addons {
             for addon_server in &addon.servers {
                 if addon_server.id == server.id {
                     return Some(addon.addon_id.clone());
+                }
+                if let Some(server_info) = servers_info.get(&server.id) {
+                    if server_info.full_id.to_string() == addon_server.id.to_string() {
+                        return Some(addon.addon_id.clone());
+                    }
                 }
             }
         }
@@ -251,8 +308,8 @@ fn compile_server(server: &ServerDefinition, enabled_addons: &EnabledAddons, add
         args.split(' ')
             .map(|arg| {
                 if arg.starts_with("%ADDON_PATH%") {
-                    let addon_path = arg["%ADDON_PATH%".len()..].trim_start_matches(['/', '\\']);
-                    addons_dir.join(get_server_addon_id(server, addons).unwrap()).join(addon_path).display().to_string()
+                    let addon_path = os_specific_file_type(&arg["%ADDON_PATH%".len()..].trim_start_matches(['/', '\\']));
+                    addons_dir.join(get_server_addon_id(server, addons, &enabled_addons.servers_info).unwrap()).join(addon_path).display().to_string()
                 } else {
                     arg.to_string()
                 }
@@ -268,11 +325,16 @@ fn compile_server(server: &ServerDefinition, enabled_addons: &EnabledAddons, add
         }
     };
 
-    let get_runtime_addon_id = |runtime: &RuntimeDefinition, addons: &Vec<MinimalAddonDefinition>| -> Option<String> {
+    let get_runtime_addon_id = |runtime: &RuntimeDefinition, addons: &Vec<MinimalAddonDefinition>, runtime_info: &HashMap<String, InfoDefinition>| -> Option<String> {
         for addon in addons {
             for addon_runtime in &addon.runtimes {
                 if addon_runtime.id == runtime.id {
                     return Some(addon.addon_id.clone());
+                }
+                if let Some(runtime_info) = runtime_info.get(&runtime.id) {
+                    if runtime_info.full_id == addon_runtime.id {
+                        return Some(addon.addon_id.clone());
+                    }
                 }
             }
         }
@@ -281,7 +343,7 @@ fn compile_server(server: &ServerDefinition, enabled_addons: &EnabledAddons, add
 
     if let Some(runtime_engine) = &server.runtime_engine {
         if let Some(runtime) = enabled_addons.runtimes.iter().find(|r| r.id == *runtime_engine) {
-            let runtime_path = addons_dir.join(get_runtime_addon_id(runtime, addons).unwrap()).join(runtime.path.clone().unwrap_or_default());
+            let runtime_path = addons_dir.join(get_runtime_addon_id(runtime, addons, &enabled_addons.runtimes_info).unwrap()).join(os_specific_file_type(&runtime.path.clone().unwrap_or_default()));
             let runtime_info = enabled_addons.runtimes_info.get(runtime_engine).ok_or_else(|| "Unable to find runtime info".to_string())?;
             servers_info.insert(server_info.id.clone(), ServerInfo::from_info(&server_info, Some(runtime_info.clone())));
             return Ok(with_args(runtime_path.display().to_string()));
@@ -294,7 +356,7 @@ fn compile_server(server: &ServerDefinition, enabled_addons: &EnabledAddons, add
 
     if let Some(path) = &server.path {
         servers_info.insert(server_info.id.clone(), ServerInfo::from_info(&server_info, None));
-        return Ok(with_args(path.clone()));
+        return Ok(with_args(os_specific_file_type(&path)));
     }
 
     Err(format!("Server '{}' needs either a runtime_engine or a path", server.id))
@@ -303,6 +365,7 @@ fn compile_server(server: &ServerDefinition, enabled_addons: &EnabledAddons, add
 pub async fn compile_manifest() -> Result<CompiledManifest, String> {
     let addons: Vec<MinimalAddonDefinition> = get_addons().await?;
     let enabled_addons = get_enabled_addons(&addons).await?;
+    validate_required_dependencies().await?;
     validate_enabled_addons(&enabled_addons)?;
 
     let enabled_addons_copy = enabled_addons.clone();
