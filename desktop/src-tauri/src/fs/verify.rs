@@ -7,8 +7,6 @@ pub async fn verify_sha256(path: &std::path::Path, sha256: &str) -> Result<(), S
     if hash == sha256 {
         Ok(())
     } else {
-        //Err("SHA256 incorrecto".to_string())
-        // Temp for testing
-        Ok(())
+        Err("SHA256 incorrecto".to_string())
     }
 }
