@@ -1,5 +1,6 @@
 use crate::addons::CompiledManifest;
 use crate::servers::ServersMap;
+use crate::consts::APP_FOLDER_NAME;
 
 use std::sync::Arc;
 use tokio::sync::oneshot;
@@ -16,7 +17,7 @@ pub struct AppState {
 }
 
 pub fn app_data_dir() -> Option<PathBuf> {
-    BaseDirs::new().map(|dirs| dirs.data_dir().join("Lynk"))
+    BaseDirs::new().map(|dirs| dirs.data_dir().join(APP_FOLDER_NAME))
 }
 
 pub fn bearer_token_path() -> Option<PathBuf> {

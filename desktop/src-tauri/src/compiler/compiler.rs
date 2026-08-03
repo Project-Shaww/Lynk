@@ -10,6 +10,7 @@ use crate::models::InstalledAddonManifest;
 use crate::models::identifier::Identifier;
 use crate::models::version::is_version_at_least;
 use crate::validators::{validate_runtime, validate_server};
+use crate::consts::COMPILER_VERSION;
 
 pub async fn get_addons() -> Result<Vec<MinimalAddonDefinition>, String> {
     let config_handler = ConfigHandler::load().await?;
@@ -382,7 +383,7 @@ pub async fn compile_manifest() -> Result<CompiledManifest, String> {
         .collect::<Result<HashMap<_, _>, String>>()?;
 
     let compiled_manifest = CompiledManifest {
-        compiler_version: "0.1.0".to_string(),
+        compiler_version: COMPILER_VERSION.to_string(),
         servers,
         servers_info,
     };

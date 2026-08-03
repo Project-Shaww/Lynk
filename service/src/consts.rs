@@ -1,0 +1,1 @@
+pub const APP_FOLDER_NAME: &str = "Lynk";
