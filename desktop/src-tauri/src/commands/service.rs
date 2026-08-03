@@ -1,10 +1,11 @@
 use crate::fs::paths::app_data_dir;
 use crate::models::identifier::System;
+use crate::ServiceHandle;
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tauri::AppHandle;
+use tauri::{AppHandle, State};
 use tauri_plugin_shell::ShellExt;
 use tokio::time::{sleep, Duration, timeout};
 
@@ -24,8 +25,6 @@ pub struct RunningServer {
     pub id: String,
     pub metadata: serde_json::Value,
 }
-
-
 
 fn bearer_token_path() -> Result<PathBuf, String> {
     app_data_dir()
@@ -89,18 +88,20 @@ pub async fn reload_compiled_manifest() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn start_service(app: AppHandle) -> Result<ServiceStatus, String> {
+pub async fn start_service(app: AppHandle, service_handle: State<'_, ServiceHandle>) -> Result<ServiceStatus, String> {
     if let Ok(status) = fetch_service_status().await {
         if status.running {
             return Ok(status);
         }
     }
 
-    let (_, _child) = app.shell()
+    let (_, child) = app.shell()
         .sidecar("lynk_service")
         .map_err(|e| format!("Failed to create sidecar: {}", e))?
         .spawn()
         .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
+
+    *service_handle.0.lock().unwrap() = Some(child);
 
     for _ in 0..20 {
         if let Ok(status) = fetch_service_status().await {

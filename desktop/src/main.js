@@ -65,6 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
     refreshDashboard("home");
     loadAddons();
     checkAddonUpdates(true);
+    document.addEventListener('contextmenu', (e) => {e.preventDefault()});
     (async () => {
         try {
             const status = await invoke("get_service_status");
