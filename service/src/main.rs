@@ -17,9 +17,25 @@ use tokio::sync::{Mutex, oneshot};
 use tracing::info;
 use tower_http::cors::{Any, CorsLayer};
 
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing_subscriber::fmt::init();
+
+    tokio::spawn(async move {
+        use tokio::io::AsyncReadExt;
+        let mut stdin = tokio::io::stdin();
+        let mut buf = [0u8; 1];
+        loop {
+            match stdin.read(&mut buf).await {
+                Ok(0) | Err(_) => {
+                    tracing::info!("Stdin closed — parent process gone. Shutting down service.");
+                    std::process::exit(0);
+                }
+                _ => {}
+            }
+        }
+    });
 
     let manifest = load_manifest()?;
     info!("loaded compiled manifest: {} servers", manifest.servers.len());

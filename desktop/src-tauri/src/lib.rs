@@ -9,6 +9,10 @@ mod validators;
 use tauri::{Emitter, Manager, WindowEvent};
 use tauri::menu::{MenuBuilder, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri_plugin_shell::process::CommandChild;
+use std::sync::Mutex;
+
+pub struct ServiceHandle(pub Mutex<Option<CommandChild>>);
 
 use commands::{
     install_addon, get_remote_manifest, preview_install_addon, update_addon, check_addon_update,
@@ -22,6 +26,7 @@ use commands::{
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(ServiceHandle(Mutex::new(None)))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
@@ -102,6 +107,14 @@ pub fn run() {
             get_app_version,
             get_system_info
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error building app")
+        .run(move |app_handle, event| match event {
+            tauri::RunEvent::ExitRequested { .. } => {
+                if let Some(child) = app_handle.state::<ServiceHandle>().0.lock().unwrap().take() {
+                    let _ = child.kill();
+                }
+            },
+            _ => {}
+        });
 }
