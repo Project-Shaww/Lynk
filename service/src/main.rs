@@ -4,6 +4,7 @@ mod control;
 mod servers;
 mod socket;
 mod integrated;
+mod consts;
 
 use crate::addons::{load_manifest, get_manifest, list_protocols, reload_manifest};
 use crate::control::{shutdown, status};

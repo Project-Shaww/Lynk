@@ -2,6 +2,7 @@ pub mod config;
 mod addons;
 mod commands;
 mod compiler;
+mod consts;
 mod fs;
 mod models;
 mod validators;
