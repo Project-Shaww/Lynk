@@ -2,6 +2,8 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
+try { execSync('taskkill /IM lynk_service.exe /F');} catch(_) {};
+
 // Get target triple
 const rustcOutput = execSync('rustc -vV').toString();
 const targetTriple = rustcOutput.split('\n').find(line => line.startsWith('host: ')).replace('host: ', '').trim();

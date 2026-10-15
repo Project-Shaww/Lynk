@@ -1,5 +1,6 @@
 use crate::addons::CompiledManifest;
 use crate::app::AppState;
+use crate::app::{user_data_dir, app_data_dir};
 
 use axum::{extract::{ws::Message, State}, response::IntoResponse, Json};
 use serde_json::{Value, Map};
@@ -50,6 +51,7 @@ pub async fn spawn_server(protocol: String, config: Value, host_id: &str, server
 
     let manifest = manifest.lock().await;
     let (program, args_extra, cwd) = resolve_server_command(&protocol, &manifest)?;
+    let server_info = manifest.servers_info.get(&protocol).cloned();
 
     let mut command = Command::new(program);
     command.args(args_extra);
@@ -71,6 +73,7 @@ pub async fn spawn_server(protocol: String, config: Value, host_id: &str, server
     };
     let mut stdin = tokio::io::BufWriter::new(stdin);
     let (writer_tx, mut writer_rx) = mpsc::unbounded_channel::<ChildSend>();
+    let writer_tx_clone = writer_tx.clone();
 
     tokio::spawn(async move {
         while let Some(ChildSend::Json(v)) = writer_rx.recv().await {
@@ -117,6 +120,25 @@ pub async fn spawn_server(protocol: String, config: Value, host_id: &str, server
                                     let _ = tx.send(port_u16);
                                 }
                                 info!("child {} ready on port {}", sid_clone, port_u16);
+                            }
+                        }
+                        if t == "question" {
+                            match val.get("what").and_then(|x| x.as_str()) {
+                                Some("server_info") => {
+                                    let server_info_response = serde_json::json!({"type":"answer","question_id": val.get("question_id").and_then(|x| x.as_str()), "answer": server_info.as_ref().unwrap()});
+                                    let _ = writer_tx_clone.send(ChildSend::Json(server_info_response));
+                                }
+                                Some("user_data_path") => {
+                                    let user_data_path = user_data_dir().unwrap_or_default().display().to_string();
+                                    let server_info_response = serde_json::json!({"type":"answer","question_id": val.get("question_id").and_then(|x| x.as_str()), "answer": user_data_path});
+                                    let _ = writer_tx_clone.send(ChildSend::Json(server_info_response));
+                                }
+                                Some("addon_data_path") => {
+                                    let addon_data_path = app_data_dir().unwrap_or_default().join("addons").join(&server_info.as_ref().unwrap().addon_uid).display().to_string();
+                                    let server_info_response = serde_json::json!({"type":"answer","question_id": val.get("question_id").and_then(|x| x.as_str()), "answer": addon_data_path});
+                                    let _ = writer_tx_clone.send(ChildSend::Json(server_info_response));
+                                }
+                                _ => {}
                             }
                         }
                     }

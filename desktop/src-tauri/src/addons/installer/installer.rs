@@ -87,6 +87,8 @@ async fn install_staged_addon(client: &Client, manifest: &RemoteAddonManifest, s
 		origin: manifest.origin.clone(),
 		name: manifest.name.clone(),
 		description: manifest.description.clone(),
+        author: manifest.author.clone(),
+        icon: manifest.icon.clone(),
 		version: manifest.version.clone(),
 		dependencies: manifest.dependencies.clone(),
 		runtimes: manifest.runtimes.clone(),

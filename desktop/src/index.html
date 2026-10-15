@@ -40,8 +40,8 @@
 					</div>
 
 					<section class="dashboard-grid home-grid">
-						<article class="card dashboard-card service-card" style="background-color: transparent; border-color: transparent; padding: 0;">
-							<div class="card-header-row" style="flex-direction:row;">
+						<article class="card dashboard-card service-card">
+							<div class="card-header-row" style="flex-direction:row; padding:2px;">
 								<h2>Service Status</h2>
 								<span class="status-pill" id="service-status-pill">Offline</span>
 							</div>
@@ -263,6 +263,7 @@
 						<span class="addon-slug">$ADDON_SLUG$</span>
 						<span class="badge badge-update hidden" template-id="badge-update-$ADDON_INSTALLED_ID$">Update Available</span>
 					</div>
+					<p class="addon-author">$ADDON_AUTHOR$</p>
 				</div>
 				<p class="addon-description">$ADDON_DESCRIPTION$</p>
 			</div>
@@ -403,6 +404,10 @@
 					<div class="info-section-title">Addon ID</div>
 					<div class="info-box" style="font-family: monospace;">$ADDON_ID$</div>
 				</div>
+			</div>
+			<div class="info-section">
+				<div class="info-section-title">Author</div>
+				<div class="info-box" style="color: var(--text-secondary);">$ADDON_AUTHOR$</div>
 			</div>
 			<div class="info-section">
 				<div class="info-section-title">Description</div>

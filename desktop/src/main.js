@@ -568,6 +568,7 @@ async function triggerInstallPreview(url) {
             .replaceAll("$NAME$", manifest.name)
             .replaceAll("$VERSION$", manifest.version)
             .replaceAll("$ADDON_ID$", manifest.id)
+            .replaceAll("$ADDON_AUTHOR$", manifest.author ?? "Unknown Author")
             .replaceAll("$DESCRIPTION$", description)
             .replaceAll("$RUNTIMES$", runtimesHtml)
             .replaceAll("$SERVERS$", serversHtml)
@@ -681,6 +682,7 @@ function createAddonCard(addon, enabledState) {
         .replaceAll("$ADDON_NAME$", addon.name)
         .replaceAll("$ADDON_VERSION$", addon.version)
         .replaceAll("$ADDON_SLUG$", addon.installed_id)
+        .replaceAll("$ADDON_AUTHOR$", addon.author ?? "Unknown Author")
         .replaceAll("$ADDON_DESCRIPTION$", description)
         .replaceAll("$ADDON_INSTALLED_ID$", addon.installed_id)
         .replaceAll("template-id=", "id=");

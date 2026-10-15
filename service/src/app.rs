@@ -20,6 +20,10 @@ pub fn app_data_dir() -> Option<PathBuf> {
     BaseDirs::new().map(|dirs| dirs.data_dir().join(APP_FOLDER_NAME))
 }
 
+pub fn user_data_dir() -> Option<PathBuf> {
+    app_data_dir().map(|dir| dir.join("user_data"))
+}
+
 pub fn bearer_token_path() -> Option<PathBuf> {
     app_data_dir().map(|dir| dir.join("bearer"))
 }

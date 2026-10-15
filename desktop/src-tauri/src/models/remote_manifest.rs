@@ -16,6 +16,10 @@ pub struct RemoteAddonManifest {
     #[serde(default)]
 	pub description: Option<String>,
     #[serde(default)]
+    pub author: Option<String>,
+    #[serde(default)]
+    pub icon: Option<String>,
+    #[serde(default)]
 	pub version: String,
     #[serde(default)]
 	pub dependencies: Option<Vec<DependencieDefinition>>,

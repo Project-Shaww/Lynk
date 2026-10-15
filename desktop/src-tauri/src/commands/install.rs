@@ -156,14 +156,14 @@ pub async fn preview_install_addon(manifest_url: String) -> Result<InstallPrevie
 
 #[tauri::command]
 pub async fn install_addon(manifest_url: String, replace_existing: Option<bool>) -> Result<InstalledAddonManifest, String> {
-	if replace_existing.unwrap_or(false) {
-		let preview = preview_install_addon(manifest_url.clone()).await?;
+	let res = install::install_addon(manifest_url.clone()).await;
+	if res.is_ok() && replace_existing.unwrap_or(false) {
+		let preview = preview_install_addon(manifest_url).await?;
 		for conflict in preview.conflicts {
 			let _ = uninstall::uninstall_addon(conflict.installed_id).await;
 		}
 	}
-
-	install::install_addon(manifest_url).await
+	res
 }
 
 #[tauri::command]
